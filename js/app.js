@@ -23,8 +23,7 @@ const App = {
     },
 
     renderCyclesList: (cycles) => {
-        const container = document.getElementById('cycles-list');
-        if (!container) return;
+        const container = document.getElementById('cycles-list'); if (!container) return;
         container.innerHTML = cycles.length === 0 ? '<p class="text-xs text-slate-400 italic text-center py-4">No cycles defined.</p>' : '';
         cycles.sort((a, b) => new Date(b.startDate) - new Date(a.startDate)).forEach(c => {
             const div = document.createElement('div');
@@ -39,33 +38,33 @@ const App = {
 
     openCycleForm: (cycle = null) => {
         const form = document.getElementById('cycle-form'), id = document.getElementById('cycle-edit-id'), name = document.getElementById('cycle-name'), start = document.getElementById('cycle-start'), end = document.getElementById('cycle-end');
-        if (!form) return;
-        form.classList.remove('hidden');
+        if (!form) return; form.classList.remove('hidden');
         if (cycle) { id.value = cycle.id; name.value = cycle.name; start.value = cycle.startDate; end.value = cycle.endDate || ''; }
         else { id.value = ''; name.value = ''; start.value = new Date().toISOString().split('T')[0]; end.value = ''; }
     },
 
     saveCycle: async () => {
-        const id = document.getElementById('cycle-edit-id').value, name = document.getElementById('cycle-name').value, start = document.getElementById('cycle-start').value, end = document.getElementById('cycle-end').value;
-        if (!name || !start) return alert('Name and Start Date are required.');
-        const settings = await storage.getSettings(); if (!settings.cycles) settings.cycles = [];
-        if (id) { const idx = settings.cycles.findIndex(c => c.id === id); if (idx !== -1) settings.cycles[idx] = { id, name, startDate: start, endDate: end }; }
-        else { settings.cycles.push({ id: crypto.randomUUID(), name, startDate: start, endDate: end }); }
-        await storage.saveSettings(settings); document.getElementById('cycle-form').classList.add('hidden'); await App.loadSettings();
+        const name = document.getElementById('cycle-name').value, start = document.getElementById('cycle-start').value, end = document.getElementById('cycle-end').value, id = document.getElementById('cycle-edit-id').value;
+        if (!name || !start) return alert('Name and Start Date required.');
+        const s = await storage.getSettings(); if (!s.cycles) s.cycles = [];
+        if (id) { const idx = s.cycles.findIndex(c => c.id === id); if (idx !== -1) s.cycles[idx] = { id, name, startDate: start, endDate: end }; }
+        else { s.cycles.push({ id: crypto.randomUUID(), name, startDate: start, endDate: end }); }
+        await storage.saveSettings(s); document.getElementById('cycle-form').classList.add('hidden'); await App.loadSettings();
     },
 
-    deleteCycle: async (id) => {
-        if (confirm('Delete this cycle?')) { const s = await storage.getSettings(); s.cycles = s.cycles.filter(c => c.id !== id); await storage.saveSettings(s); await App.loadSettings(); }
-    },
+    deleteCycle: async (id) => { if (confirm('Delete cycle?')) { const s = await storage.getSettings(); s.cycles = s.cycles.filter(c => c.id !== id); await storage.saveSettings(s); await App.loadSettings(); } },
 
     updateActiveCycleBadge: (cycles) => {
         const container = document.getElementById('cycle-badges-container'); if (!container) return; container.innerHTML = '';
-        const now = new Date(), todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const active = cycles.filter(c => todayStr >= c.startDate && todayStr <= (c.endDate || '9999-12-31'));
         if (active.length === 0) { container.innerHTML = '<span class="px-4 py-2 rounded-2xl text-[11px] font-extrabold bg-slate-800 text-slate-500 border border-slate-700 uppercase tracking-widest shadow-sm">No Active Cycle</span>'; return; }
         active.forEach(a => {
-            const start = new Date(a.startDate + 'T00:00:00'), today = new Date(todayStr + 'T00:00:00');
-            const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24)) + 1;
+            const startParts = a.startDate.split('-').map(Number);
+            const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+            const diffTime = today.getTime() - startDate.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
             const b = document.createElement('span'); b.className = 'px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl text-[9px] md:text-[11px] font-extrabold bg-indigo-600 text-white border border-indigo-500 uppercase tracking-widest shadow-lg shadow-indigo-900/20 whitespace-nowrap';
             b.textContent = `${a.name} Day ${diffDays}`; container.appendChild(b);
         });
@@ -90,56 +89,30 @@ const App = {
         if (hash === '#history') await App.renderHistory(); if (hash === '#dashboard') await App.loadDashboardData(); if (hash === '#insights') await App.renderInsights();
     },
 
-    initFilters: () => {
-        const mF = document.getElementById('filter-month'), yF = document.getElementById('filter-year');
-        const bP = document.getElementById('btn-prev-month'), bN = document.getElementById('btn-next-month');
-        if (!mF || !yF) return;
-        const now = new Date(); mF.value = now.getMonth(); const cY = now.getFullYear();
-        yF.innerHTML = ''; for (let y = 2024; y <= cY + 1; y++) { const o = document.createElement('option'); o.value = y; o.textContent = y; yF.appendChild(o); }
-        yF.value = cY; mF.onchange = () => App.renderHistory(); yF.onchange = () => App.renderHistory();
-        if (bP) bP.onclick = () => App.changeMonth(-1); if (bN) bN.onclick = () => App.changeMonth(1);
-        const cC = document.getElementById('history-content-calendar'), g = document.getElementById('calendar-grid');
-        let tX = 0, isD = false;
-        if (cC && g) {
-            cC.addEventListener('touchstart', e => { tX = e.changedTouches[0].screenX; g.style.transition = 'none'; isD = true; }, { passive: true });
-            cC.addEventListener('touchmove', e => { if (!isD) return; const cX = e.changedTouches[0].screenX, diff = cX - tX; g.style.transform = `translateX(${diff * 0.5}px)`; g.style.opacity = Math.max(0.5, 1 - Math.abs(diff) / 500); }, { passive: true });
-            cC.addEventListener('touchend', e => { isD = false; const eX = e.changedTouches[0].screenX, d = tX - eX; g.style.transition = 'all 0.3s ease-out'; g.style.transform = 'translateX(0)'; g.style.opacity = '1'; if (Math.abs(d) > 80) App.changeMonth(d > 0 ? 1 : -1); }, { passive: true });
-        }
-    },
-
-    changeMonth: async (delta) => {
-        const mF = document.getElementById('filter-month'), yF = document.getElementById('filter-year'); if (!mF || !yF) return;
-        let m = parseInt(mF.value) + delta, y = parseInt(yF.value);
-        if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
-        const yO = Array.from(yF.options).find(o => parseInt(o.value) === y);
-        if (yO) { mF.value = m; yF.value = y; await App.renderHistory(); }
-    },
-
     setupEventListeners: () => {
         window.addEventListener('hashchange', App.handleRouting);
         const { btnAddMobile, btnClose, btnSave, chips, form } = ui.elements;
-        const tabL = document.getElementById('tab-history-list'), tabC = document.getElementById('tab-history-calendar');
-        if (tabL) tabL.onclick = () => App.switchHistoryTab('list'); if (tabC) tabC.onclick = () => App.switchHistoryTab('calendar');
+        if (document.getElementById('tab-history-list')) document.getElementById('tab-history-list').onclick = () => App.switchHistoryTab('list');
+        if (document.getElementById('tab-history-calendar')) document.getElementById('tab-history-calendar').onclick = () => App.switchHistoryTab('calendar');
         if (btnAddMobile) btnAddMobile.onclick = () => App.openModal(); if (btnClose) btnClose.onclick = App.closeModal;
         chips.forEach(c => c.onclick = () => { const s = document.querySelector(`section[data-id="${c.dataset.section}"]`); if (s) { s.classList.toggle('hidden'); c.classList.toggle('bg-indigo-100'); c.classList.toggle('border-indigo-300'); c.classList.toggle('text-indigo-900'); } });
         ['food', 'fluid', 'meds'].forEach(t => { const b = document.getElementById(`btn-add-${t}-item`); if (b) b.onclick = () => App.addItemRow(t); });
-        const btnS = document.getElementById('btn-seed-data'); if (btnS) btnS.onclick = App.seedTestData;
-        const btnCT = document.getElementById('btn-clear-test-data'); if (btnCT) btnCT.onclick = App.clearTestData;
-        const btnAC = document.getElementById('btn-add-cycle'); if (btnAC) btnAC.onclick = () => App.openCycleForm();
-        const btnSC = document.getElementById('btn-save-cycle'); if (btnSC) btnSC.onclick = App.saveCycle;
-        const btnCC = document.getElementById('btn-cancel-cycle'); if (btnCC) btnCC.onclick = () => document.getElementById('cycle-form').classList.add('hidden');
+        if (document.getElementById('btn-seed-data')) document.getElementById('btn-seed-data').onclick = App.seedTestData;
+        if (document.getElementById('btn-clear-test-data')) document.getElementById('btn-clear-test-data').onclick = App.clearTestData;
+        if (document.getElementById('btn-add-cycle')) document.getElementById('btn-add-cycle').onclick = () => App.openCycleForm();
+        if (document.getElementById('btn-save-cycle')) document.getElementById('btn-save-cycle').onclick = App.saveCycle;
+        if (document.getElementById('btn-cancel-cycle')) document.getElementById('btn-cancel-cycle').onclick = () => document.getElementById('cycle-form').classList.add('hidden');
         if (form) form.oninput = App.validateForm; if (btnSave) btnSave.onclick = (e) => App.saveEntry(e);
-        const btnEC = document.getElementById('btn-export-csv'); if (btnEC) btnEC.onclick = App.exportToCSV;
-        const btnEJ = document.getElementById('btn-export-json'); if (btnEJ) btnEJ.onclick = App.exportToJSON;
-        const inpIJ = document.getElementById('input-import-json'); if (inpIJ) inpIJ.onchange = (e) => App.importFromJSON(e);
+        if (document.getElementById('btn-export-csv')) document.getElementById('btn-export-csv').onclick = App.exportToCSV;
+        if (document.getElementById('btn-export-json')) document.getElementById('btn-export-json').onclick = App.exportToJSON;
+        if (document.getElementById('input-import-json')) document.getElementById('input-import-json').onchange = (e) => App.importFromJSON(e);
         if (ui.elements.inputPhoto) ui.elements.inputPhoto.onchange = (e) => App.handlePhotoUpload(e);
     },
 
     handlePhotoUpload: async (e) => {
-        const files = Array.from(e.target.files); const total = App.state.currentPhotos.length + files.length;
-        if (App.state.currentPhotos.length >= 5) { alert('Max 5 photos allowed.'); ui.elements.inputPhoto.value = ''; return; }
+        const files = Array.from(e.target.files); if (App.state.currentPhotos.length >= 5) { alert('Max 5 photos allowed.'); return; }
         let added = 0; for (const f of files) { if (App.state.currentPhotos.length < 5) { const b64 = await App.resizeImage(f, 800, 800); App.state.currentPhotos.push(b64); added++; } }
-        if (total > 5) alert(`Added ${added} photos. Max 5 allowed.`); App.renderPhotoPreviews(); App.validateForm(); if (ui.elements.inputPhoto) ui.elements.inputPhoto.value = '';
+        App.renderPhotoPreviews(); App.validateForm(); if (ui.elements.inputPhoto) ui.elements.inputPhoto.value = '';
     },
 
     resizeImage: (file, mW, mH) => {
@@ -152,24 +125,24 @@ const App = {
     },
 
     seedTestData: async () => {
-        const t = new Date(), b = utils.getLocalISOString(t).split('T')[0];
+        const now = new Date(), y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0'), todayStr = `${y}-${m}-${d}`;
         const entries = [
-            { timestamp: `${b}T07:00`, source: 'generated', temp: 36.5, notes: "Seeded data.", fluid_items: [{ label: "Water", value: 200, unit: "ml" }] },
-            { timestamp: `${b}T11:45`, source: 'generated', temp: 37.2, anc: 0.45, platelets: 42, notes: "Emergency test." }
+            { timestamp: `${todayStr}T07:00`, source: 'generated', temp: 36.5, notes: "Morning check.", fluid_items: [{ label: "Water", value: 250, unit: "ml" }] },
+            { timestamp: `${todayStr}T11:45`, source: 'generated', temp: 37.2, anc: 0.45, platelets: 42, wbc: 3.2, notes: "Blood work results." }
         ];
         for (const e of entries) await storage.saveEntry(e); alert("Seeded data!"); location.reload();
     },
 
-    clearTestData: async () => { if (confirm("Clear all test data?")) { await storage.deleteEntriesBySource('generated'); alert('Test data cleared.'); location.reload(); } },
+    clearTestData: async () => { if (confirm("Clear test data?")) { await storage.deleteEntriesBySource('generated'); location.reload(); } },
 
     addItemRow: (type, data = null) => {
         const c = document.getElementById(`${type}-list-container`); if (!c) return;
         const item = data || { label: '', value: '', unit: type === 'food' ? 'g' : (type === 'fluid' ? 'ml' : 'mg') };
-        const r = document.createElement('div'); r.className = `${type}-row p-4 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-3 relative group animate-in fade-in duration-200`;
-        r.innerHTML = `<div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Item Name</label><input type="text" list="${type}_labels" name="${type}_label[]" value="${item.label}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
-            <div class="grid grid-cols-2 gap-3"><div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Value</label><input type="number" step="0.1" name="${type}_value[]" value="${item.value}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
-            <div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Unit</label><input type="text" list="${type}_units" name="${type}_unit[]" value="${item.unit}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div></div>
-            <button type="button" class="btn-remove-item absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold shadow-sm border border-red-200 opacity-0 group-hover:opacity-100 transition-opacity">×</button>`;
+        const r = document.createElement('div'); r.className = `${type}-row p-4 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-3 relative group`;
+        r.innerHTML = `<div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Name</label><input type="text" list="${type}_labels" name="${type}_label[]" value="${item.label}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
+            <div class="grid grid-cols-2 gap-3"><div><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Value</label><input type="number" step="0.1" name="${type}_value[]" value="${item.value}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
+            <div><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Unit</label><input type="text" list="${type}_units" name="${type}_unit[]" value="${item.unit}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div></div>
+            <button type="button" class="btn-remove-item absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center font-bold">×</button>`;
         r.querySelector('.btn-remove-item').onclick = () => { r.remove(); App.validateForm(); }; c.appendChild(r);
     },
 
@@ -221,7 +194,7 @@ const App = {
 
     loadDashboardData: async () => {
         const entries = await storage.getEntries();
-        const now = new Date(), year = now.getFullYear(), month = String(now.getMonth() + 1).padStart(2, '0'), day = String(now.getDate()).padStart(2, '0'), todayStr = `${year}-${month}-${day}`;
+        const now = new Date(), y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0'), todayStr = `${y}-${m}-${d}`;
         const todayEntries = entries.filter(e => e.timestamp.split('T')[0] === todayStr).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         const latestANC = entries.find(e => e.anc != null)?.anc, latestPLT = entries.find(e => e.platelets != null)?.platelets, latestWBC = entries.find(e => e.wbc != null)?.wbc;
         ui.updateBadge('anc', latestANC, 0.5, 'low'); ui.updateBadge('platelets', latestPLT, 50, 'low'); ui.updateBadge('wbc', latestWBC, 4.0, 'low');
@@ -313,3 +286,6 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', App.init);
+window.App = App;
+window.storage = storage;
+window.ui = ui;
