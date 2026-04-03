@@ -8,9 +8,9 @@ const App = {
     init: async () => {
         ui.refreshElements();
         await storage.init();
+        App.initFilters();
         App.setupEventListeners();
         App.handleRouting();
-        App.initFilters();
         await App.loadDashboardData();
         await App.loadSettings();
         ui.populateDatalists(await storage.getSuggestions());
@@ -107,6 +107,23 @@ const App = {
         if (document.getElementById('btn-export-json')) document.getElementById('btn-export-json').onclick = App.exportToJSON;
         if (document.getElementById('input-import-json')) document.getElementById('input-import-json').onchange = (e) => App.importFromJSON(e);
         if (ui.elements.inputPhoto) ui.elements.inputPhoto.onchange = (e) => App.handlePhotoUpload(e);
+    },
+
+    initFilters: () => {
+        const mF = document.getElementById('filter-month'), yF = document.getElementById('filter-year'), bP = document.getElementById('btn-prev-month'), bN = document.getElementById('btn-next-month');
+        if (!mF || !yF) return;
+        const now = new Date(); mF.value = now.getMonth(); const cY = now.getFullYear();
+        yF.innerHTML = ''; for (let y = 2024; y <= cY + 1; y++) { const o = document.createElement('option'); o.value = y; o.textContent = y; yF.appendChild(o); }
+        yF.value = cY; mF.onchange = () => App.renderHistory(); yF.onchange = () => App.renderHistory();
+        if (bP) bP.onclick = () => App.changeMonth(-1); if (bN) bN.onclick = () => App.changeMonth(1);
+    },
+
+    changeMonth: async (delta) => {
+        const mF = document.getElementById('filter-month'), yF = document.getElementById('filter-year'); if (!mF || !yF) return;
+        let m = parseInt(mF.value) + delta, y = parseInt(yF.value);
+        if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+        const yO = Array.from(yF.options).find(o => parseInt(o.value) === y);
+        if (yO) { mF.value = m; yF.value = y; await App.renderHistory(); }
     },
 
     handlePhotoUpload: async (e) => {
@@ -286,3 +303,6 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', App.init);
+window.App = App;
+window.storage = storage;
+window.ui = ui;
