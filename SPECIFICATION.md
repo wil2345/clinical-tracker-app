@@ -22,7 +22,7 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 
 ---
 
-## 3. Current Implementation (Status: Production Ready - v1.0.1)
+## 3. Current Implementation (Status: Production Ready - v1.2.0)
 
 ### Core PWA & Storage
 - [x] **PWA Infrastructure:** Installable standalone app with Service Worker (`sw.js`) for offline support.

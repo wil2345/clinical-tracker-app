@@ -79,7 +79,7 @@ const App = {
         if (viewSettings) viewSettings.classList.toggle('hidden', hash !== '#settings');
         if (vT && vS) {
             switch(hash) {
-                case '#dashboard': vT.textContent = 'Today'; vS.textContent = utils.formatDate(new Date()); break;
+                case '#dashboard': vT.textContent = 'Dashboard'; vS.textContent = utils.formatDate(new Date()); break;
                 case '#history': vT.textContent = 'History'; vS.textContent = 'Clinical Journal'; break;
                 case '#insights': vT.textContent = 'Insights'; vS.textContent = 'Trends & Analytics'; break;
                 case '#settings': vT.textContent = 'Settings'; vS.textContent = 'Configuration'; break;
@@ -142,12 +142,18 @@ const App = {
     },
 
     seedTestData: async () => {
-        const now = new Date(), y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0'), todayStr = `${y}-${m}-${d}`;
-        const entries = [
-            { timestamp: `${todayStr}T07:00`, source: 'generated', temp: 36.5, notes: "Morning check.", fluid_items: [{ label: "Water", value: 250, unit: "ml" }] },
-            { timestamp: `${todayStr}T11:45`, source: 'generated', temp: 37.2, anc: 0.45, platelets: 42, wbc: 3.2, notes: "Blood work results." }
-        ];
-        for (const e of entries) await storage.saveEntry(e); alert("Seeded data!"); location.reload();
+        const entries = [];
+        for (let i = 0; i < 7; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const y = date.getFullYear(), m = String(date.getMonth() + 1).padStart(2, '0'), d = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${d}`;
+            entries.push(
+                { timestamp: `${dateStr}T07:00`, source: 'generated', temp: (36.2 + Math.random() * 0.8).toFixed(1), notes: "Morning check.", fluid_items: [{ label: "Water", value: 250, unit: "ml" }] },
+                { timestamp: `${dateStr}T11:45`, source: 'generated', temp: (36.5 + Math.random() * 1.0).toFixed(1), anc: (0.1 + Math.random() * 2).toFixed(2), platelets: Math.floor(20 + Math.random() * 200), wbc: (1 + Math.random() * 5).toFixed(1), notes: "Daily blood work." }
+            );
+        }
+        for (const e of entries) await storage.saveEntry(e); alert("Seeded 7 days of test data!"); location.reload();
     },
 
     clearTestData: async () => { if (confirm("Clear test data?")) { await storage.deleteEntriesBySource('generated'); location.reload(); } },
