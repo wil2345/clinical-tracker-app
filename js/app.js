@@ -221,18 +221,10 @@ const App = {
 
     loadDashboardData: async () => {
         const entries = await storage.getEntries();
-        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date(), year = now.getFullYear(), month = String(now.getMonth() + 1).padStart(2, '0'), day = String(now.getDate()).padStart(2, '0'), todayStr = `${year}-${month}-${day}`;
         const todayEntries = entries.filter(e => e.timestamp.split('T')[0] === todayStr).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        // Get the latest values from any entry (not just today)
-        const latestANC = entries.find(e => e.anc != null)?.anc;
-        const latestPLT = entries.find(e => e.platelets != null)?.platelets;
-        const latestWBC = entries.find(e => e.wbc != null)?.wbc;
-
-        ui.updateBadge('anc', latestANC, 0.5, 'low');
-        ui.updateBadge('platelets', latestPLT, 50, 'low');
-        ui.updateBadge('wbc', latestWBC, 4.0, 'low');
-
+        const latestANC = entries.find(e => e.anc != null)?.anc, latestPLT = entries.find(e => e.platelets != null)?.platelets, latestWBC = entries.find(e => e.wbc != null)?.wbc;
+        ui.updateBadge('anc', latestANC, 0.5, 'low'); ui.updateBadge('platelets', latestPLT, 50, 'low'); ui.updateBadge('wbc', latestWBC, 4.0, 'low');
         ui.elements.todayList.innerHTML = '';
         if (todayEntries.length === 0) ui.elements.todayEmpty.classList.remove('hidden');
         else { ui.elements.todayEmpty.classList.add('hidden'); todayEntries.forEach(e => ui.elements.todayList.appendChild(ui.createEntryCard(e, App.openModalById, App.handleDelete))); }
