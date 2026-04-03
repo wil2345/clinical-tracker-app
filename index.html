@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Clinical Tracker | B-ALL Support</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        html, body { overflow-x: hidden; width: 100%; position: relative; }
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px); }
+        .shadow-premium { box-shadow: 0 10px 30px -5px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+        .active-nav { background: #6366f1; color: white !important; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4); }
+        .active-mobile { color: #818cf8 !important; }
+        
+        /* Safe Area Utilities */
+        .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+        
+        /* Timeline styling */
+        .timeline-item { position: relative; }
+        .timeline-item::before { content: ''; position: absolute; left: 1.25rem; top: 0; bottom: 0; width: 2px; background: #f1f5f9; z-index: 0; }
+        .timeline-item:last-child::before { display: none; }
+        .timeline-dot { position: absolute; left: 1rem; top: 1.5rem; width: 0.5rem; h-0.5rem; border-radius: 99px; background: #6366f1; z-index: 1; border: 2px solid white; box-shadow: 0 0 0 4px #f5f3ff; }
+        
+        .photo-preview { width: 100%; aspect-ratio: 1; border-radius: 1.5rem; object-fit: cover; border: 2px solid white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .photo-remove { position: absolute; top: -0.5rem; right: -0.5rem; width: 1.5rem; height: 1.5rem; background: #ef4444; color: white; border-radius: 99px; display: flex; items-center; justify-center; font-bold; font-size: 10px; cursor: pointer; border: 2px solid white; z-index: 10; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen pb-20 md:pb-0 md:pl-72 text-[15px]">
+
+    <!-- Sidebar Navigation -->
+    <nav id="sidebar" class="hidden md:flex flex-col fixed left-0 top-0 h-full w-72 bg-slate-900 p-6 z-40">
+        <div class="mb-10 px-2 text-center md:text-left border-b border-slate-800 pb-8">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <span class="text-xl">🩺</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-extrabold tracking-tight text-white leading-none">Clinical</h1>
+                    <p class="text-[10px] text-indigo-400 uppercase tracking-[0.2em] font-bold mt-1">Tracker Pro</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="space-y-2">
+            <a href="#dashboard" class="active-nav flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all text-slate-400 hover:text-white">
+                <span class="text-lg">📊</span> Dashboard
+            </a>
+            <a href="#history" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-semibold">
+                <span class="text-lg">📜</span> History
+            </a>
+            <a href="#insights" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-semibold">
+                <span class="text-lg">📈</span> Insights
+            </a>
+            <a href="#settings" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-semibold">
+                <span class="text-lg">⚙️</span> Settings
+            </a>
+        </div>
+
+        <div class="mt-auto p-5 bg-indigo-950/50 rounded-3xl border border-indigo-900/50 shadow-sm">
+            <p class="text-[10px] font-extrabold text-indigo-400 uppercase mb-2 tracking-widest flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Emergency
+            </p>
+            <p class="text-[11px] text-indigo-100/80 leading-relaxed font-semibold">Temp > 38°C or ANC < 0.5? Call Hematology ER immediately.</p>
+        </div>
+
+        <div class="mt-6 px-4 text-center">
+            <p class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Version 1.0.1</p>
+        </div>
+    </nav>
+
+    <!-- Fixed Top Header (Now Midnight Theme) -->
+    <header id="app-header" class="fixed top-0 left-0 right-0 md:left-72 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 z-30 p-6 md:px-12 transition-all duration-300">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center justify-between w-full">
+                <div>
+                    <h2 id="view-title" class="text-2xl font-extrabold text-white tracking-tight">Today</h2>
+                    <p id="view-subtitle" class="text-[11px] text-indigo-400 font-bold uppercase tracking-widest mt-0.5">Loading...</p>
+                </div>
+                <!-- Cycle badges container -->
+                <div id="cycle-badges-container" class="flex flex-wrap gap-2 justify-end">
+                    <!-- Populated by JS -->
+                </div>
+                <!-- Mobile specific container removed, merged into main for simplicity -->
+                <div id="cycle-badges-container-mobile" class="hidden"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Nav (Mobile) -->
+    <nav id="mobile-nav" class="md:hidden fixed bottom-0 left-0 w-full bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 flex justify-around items-center py-4 px-4 z-40 pb-safe">
+        <a href="#dashboard" class="text-indigo-400 flex flex-col items-center gap-1 transition-colors">
+            <span class="text-xl">📊</span>
+            <span class="text-[10px] font-bold">Today</span>
+        </a>
+        <a href="#history" class="text-slate-500 flex flex-col items-center gap-1 transition-colors">
+            <span class="text-xl">📜</span>
+            <span class="text-[10px] font-bold">History</span>
+        </a>
+        <button id="btn-add-entry-mobile" class="bg-indigo-600 text-white w-14 h-14 rounded-2xl shadow-2xl shadow-indigo-500/20 -mt-12 flex items-center justify-center text-3xl font-light active:scale-90 transition-transform">
+            +
+        </button>
+        <a href="#insights" class="text-slate-500 flex flex-col items-center gap-1 transition-colors">
+            <span class="text-xl">📈</span>
+            <span class="text-[10px] font-bold">Trends</span>
+        </a>
+        <a href="#settings" class="text-slate-500 flex flex-col items-center gap-1 transition-colors">
+            <span class="text-xl">⚙️</span>
+            <span class="text-[10px] font-bold">Settings</span>
+        </a>
+    </nav>
+
+    <main id="app-content" class="pt-32 md:pt-32 p-6 md:p-12 max-w-6xl mx-auto">
+        <!-- Dashboard / Today View -->
+        <section id="view-dashboard" class="flex flex-col gap-8 h-full animate-in fade-in duration-700">
+            <!-- Summary Badges -->
+            <div class="grid grid-cols-3 gap-3 md:gap-6">
+                <div class="bg-white p-4 md:p-6 rounded-3xl shadow-premium border border-slate-200/60 text-center">
+                    <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 md:mb-2">ANC</p>
+                    <p id="today-anc" class="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">--</p>
+                    <div id="badge-anc" class="hidden mt-2 text-[8px] md:text-[9px] font-bold uppercase tracking-tighter text-slate-400">×10⁹/L</div>
+                </div>
+                <div class="bg-white p-4 md:p-6 rounded-3xl shadow-premium border border-slate-200/60 text-center">
+                    <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 md:mb-2">PLT</p>
+                    <p id="today-platelets" class="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">--</p>
+                    <div id="badge-platelets" class="hidden mt-2 text-[8px] md:text-[9px] font-bold uppercase tracking-tighter text-slate-400">×10⁹/L</div>
+                </div>
+                <div class="bg-white p-4 md:p-6 rounded-3xl shadow-premium border border-slate-200/60 text-center">
+                    <p class="text-[9px] md:text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 md:mb-2">WBC</p>
+                    <p id="today-wbc" class="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">--</p>
+                    <div id="badge-wbc" class="hidden mt-2 text-[8px] md:text-[9px] font-bold uppercase tracking-tighter text-slate-400">×10⁹/L</div>
+                </div>
+            </div>
+
+            <!-- Today's Records List -->
+            <div class="space-y-4">
+                <h3 class="text-sm font-extrabold text-slate-400 uppercase tracking-widest ml-2">Today's Timeline</h3>
+                <div id="today-list" class="space-y-4"></div>
+                <div id="today-empty" class="hidden py-20 text-center flex flex-col items-center justify-center gap-3 bg-white rounded-[3rem] border-2 border-dashed border-slate-200 shadow-sm">
+                    <span class="text-4xl">🌤️</span>
+                    <p class="text-slate-400 font-bold text-sm uppercase tracking-widest">No records for today yet</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- History -->
+        <section id="view-history" class="hidden flex-col gap-8 animate-in fade-in duration-700">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <button id="btn-prev-month" type="button" class="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-all active:scale-90">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <div class="flex gap-2 flex-1 md:flex-none">
+                        <select id="filter-month" class="flex-1 md:w-32 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl font-bold text-xs text-slate-700 focus:border-indigo-500 outline-none appearance-none">
+                            <option value="0">JAN</option><option value="1">FEB</option><option value="2">MAR</option>
+                            <option value="3">APR</option><option value="4">MAY</option><option value="5">JUN</option>
+                            <option value="6">JUL</option><option value="7">AUG</option><option value="8">SEP</option>
+                            <option value="9">OCT</option><option value="10">NOV</option><option value="11">DEC</option>
+                        </select>
+                        <select id="filter-year" class="w-20 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl font-bold text-xs text-slate-700 focus:border-indigo-500 outline-none appearance-none text-center"></select>
+                    </div>
+                    <button id="btn-next-month" type="button" class="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-all active:scale-90">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+                <div class="flex bg-slate-100 p-1 rounded-xl w-full md:w-auto">
+                    <button id="tab-history-list" class="flex-1 md:flex-none px-6 py-2 rounded-lg font-bold text-[10px] transition-all bg-white text-indigo-600 shadow-sm">JOURNAL</button>
+                    <button id="tab-history-calendar" class="flex-1 md:flex-none px-6 py-2 rounded-lg font-bold text-[10px] transition-all text-slate-500 hover:text-slate-700">CALENDAR</button>
+                </div>
+            </div>
+            <div id="history-content-list" class="space-y-6"><div id="history-grouped-list" class="space-y-6"></div></div>
+            <div id="history-content-calendar" class="hidden animate-in fade-in duration-500 relative">
+                <div id="swipe-hint" class="absolute inset-0 z-10 pointer-events-none flex items-center justify-center opacity-0 transition-opacity">
+                    <div class="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl"><span id="swipe-hint-text">Next Month</span></div>
+                </div>
+                <div class="bg-white rounded-[2.5rem] shadow-premium border border-slate-200/60 p-4 md:p-8">
+                    <div class="grid grid-cols-7 gap-1 mb-2">
+                        <div class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-3">Mon</div>
+                        <div class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-3">Tue</div>
+                        <div class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-3">Wed</div>
+                        <div class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-3">Thu</div>
+                        <div class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-3">Fri</div>
+                        <div class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-3">Sat</div>
+                        <div class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-3">Sun</div>
+                    </div>
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-1.5 md:gap-3"></div>
+                </div>
+            </div>
+            <div id="history-empty" class="hidden py-32 text-center flex-col items-center justify-center gap-4 bg-white rounded-[3rem] border-2 border-dashed border-slate-200 shadow-sm"><span class="text-6xl text-slate-300">📔</span><p class="text-slate-400 font-bold text-lg uppercase tracking-widest">No entries yet</p></div>
+        </section>
+
+        <!-- Insights / Trends -->
+        <section id="view-insights" class="hidden flex-col gap-8 animate-in fade-in duration-700">
+            <div id="insights-scorecards" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-premium border border-slate-100 flex flex-col gap-4"><div class="flex justify-between items-center px-2"><h4 class="text-xs font-black text-slate-900 uppercase tracking-widest">ANC Progression</h4><span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg">×10⁹/L</span></div><div class="h-64"><canvas id="chart-anc"></canvas></div></div>
+                <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-premium border border-slate-100 flex flex-col gap-4"><div class="flex justify-between items-center px-2"><h4 class="text-xs font-black text-slate-900 uppercase tracking-widest">Platelet Count</h4><span class="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">×10⁹/L</span></div><div class="h-64"><canvas id="chart-platelets"></canvas></div></div>
+                <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-premium border border-slate-100 flex flex-col gap-4"><div class="flex justify-between items-center px-2"><h4 class="text-xs font-black text-slate-900 uppercase tracking-widest">Max Temperature</h4><span class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg">°C</span></div><div class="h-64"><canvas id="chart-temp"></canvas></div></div>
+                <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-premium border border-slate-100 flex flex-col gap-4"><div class="flex justify-between items-center px-2"><h4 class="text-xs font-black text-slate-900 uppercase tracking-widest">Body Weight</h4><span class="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">kg</span></div><div class="h-64"><canvas id="chart-weight"></canvas></div></div>
+                <div class="lg:col-span-2 bg-white p-6 md:p-8 rounded-[2.5rem] shadow-premium border border-slate-100 space-y-6"><h4 class="text-xs font-black text-slate-900 uppercase tracking-widest px-2">Daily Intake History</h4><div id="intake-summary-container" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div></div>
+            </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="view-settings" class="hidden flex-col gap-8 animate-in fade-in duration-700">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6"><div class="flex items-center justify-between"><div class="flex items-center gap-4"><div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-xl">🗓️</div><h4 class="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Treatment Cycles</h4></div><button id="btn-add-cycle" class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xl font-light hover:bg-indigo-700 transition-all">+</button></div><div id="cycle-form" class="hidden p-5 bg-slate-50 rounded-3xl border border-slate-100 space-y-4 animate-in fade-in zoom-in duration-200"><input type="hidden" id="cycle-edit-id"><div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cycle Name</label><input type="text" id="cycle-name" placeholder="e.g. Induction" class="w-full bg-white px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div><div class="grid grid-cols-2 gap-3"><div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Start Date</label><input type="date" id="cycle-start" class="w-full bg-white px-4 py-3 rounded-xl border border-slate-100 text-xs font-bold outline-none"></div><div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">End Date (Opt)</label><input type="date" id="cycle-end" class="w-full bg-white px-4 py-3 rounded-xl border border-slate-100 text-xs font-bold outline-none"></div></div><div class="flex gap-2"><button id="btn-save-cycle" class="flex-1 py-3 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700">Save</button><button id="btn-cancel-cycle" class="px-4 py-3 bg-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-300">Cancel</button></div></div><div id="cycles-list" class="space-y-3"></div></div>
+                <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6"><div class="flex items-center gap-4"><div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">💾</div><h4 class="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Data Management</h4></div><div class="grid grid-cols-1 gap-3"><button id="btn-export-csv" class="w-full py-4 bg-slate-50 text-slate-700 font-bold rounded-2xl border border-slate-100 hover:bg-slate-100 flex items-center justify-center gap-3"><span class="text-lg">📊</span> Export CSV</button><button id="btn-export-json" class="w-full py-4 bg-slate-50 text-slate-700 font-bold rounded-2xl border border-slate-100 hover:bg-slate-100 flex items-center justify-center gap-3"><span class="text-lg">📄</span> Export Data</button><label class="w-full py-4 bg-blue-50 text-blue-700 font-bold rounded-2xl border border-blue-100 hover:bg-blue-100 flex items-center justify-center gap-3 cursor-pointer"><span class="text-lg">📥</span> Import Data<input type="file" id="input-import-json" accept=".json" class="hidden"></label></div></div>
+                <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6 md:col-span-2"><div class="flex items-center gap-4"><div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl">🛠️</div><h4 class="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Maintenance</h4></div><div class="flex flex-col md:flex-row gap-4"><button id="btn-seed-data" class="flex-1 py-4 bg-amber-50 text-amber-700 font-bold rounded-2xl border border-amber-100 hover:bg-amber-100 flex items-center justify-center gap-3"><span>🌱</span> Seed Test Data</button><button id="btn-clear-test-data" class="flex-1 py-4 bg-red-50 text-red-700 font-bold rounded-2xl border border-red-100 hover:bg-red-100 flex items-center justify-center gap-3"><span>🧹</span> Clear Test Data</button></div></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Calendar Context Menu -->
+    <div id="calendar-context-menu" class="hidden fixed z-[60] w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in duration-200">
+        <div class="p-3 bg-slate-50 border-b border-slate-100"><p id="ctx-menu-date" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]"></p></div>
+        <div class="p-1"><button id="btn-ctx-view" class="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-indigo-50 transition-all rounded-xl"><span>📜</span> View</button><button id="btn-ctx-add" class="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-indigo-50 transition-all rounded-xl"><span>➕</span> Add</button></div>
+    </div>
+
+    <!-- Entry Modal -->
+    <div id="modal-entry" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl max-h-[92vh] rounded-[3rem] shadow-premium overflow-hidden flex flex-col border border-slate-100">
+            <div class="p-8 border-b border-slate-50 flex justify-between items-center"><div><h3 id="modal-title" class="text-2xl font-extrabold text-slate-900 tracking-tight">Add Record</h3><div class="flex items-center gap-2 mt-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span><input type="datetime-local" id="entry-timestamp" class="text-xs font-bold text-indigo-600 bg-transparent border-none focus:ring-0 p-0 cursor-pointer"></div></div><button id="btn-close-modal" class="text-slate-400 hover:text-slate-900 w-12 h-12 rounded-2xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center transition-all border border-slate-100 shadow-sm"><span class="text-3xl font-light">&times;</span></button></div>
+            <form id="entry-form" class="flex-1 overflow-y-auto p-8 space-y-10 bg-slate-50/20">
+                <div class="space-y-4"><p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest ml-1">Indicators</p><div class="grid grid-cols-3 gap-2.5"><button type="button" data-section="vitals" class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1"><span class="text-lg">🌡️</span> Vitals</button><button type="button" data-section="blood" class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1"><span class="text-lg">🩸</span> Blood</button><button type="button" data-section="meds" class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1"><span class="text-lg">💊</span> Meds</button><button type="button" data-section="food" class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1"><span class="text-lg">🍲</span> Food</button><button type="button" data-section="fluid" class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1"><span class="text-lg">💧</span> Fluid</button><button type="button" data-section="poopee" class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1"><span class="text-lg">🚽</span> Poo/Pee</button><button type="button" data-section="photos" class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1"><span class="text-lg">📸</span> Photos</button></div></div>
+                <div id="sections-container" class="space-y-10">
+                    <section data-id="vitals" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500"><div class="flex items-center gap-3 mb-6"><h4 class="font-extrabold text-slate-900 text-sm uppercase tracking-widest">Vital Signs</h4><div class="h-px flex-1 bg-slate-100"></div></div><div class="grid grid-cols-2 sm:grid-cols-3 gap-5"><input type="number" step="0.1" name="temp" id="input-temp" placeholder="Temp (°C)" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 text-slate-900 outline-none font-bold shadow-sm"><input type="number" step="0.1" name="weight" placeholder="Weight (kg)" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 outline-none font-bold shadow-sm"><input type="number" name="hr" placeholder="Pulse (bpm)" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 outline-none font-bold shadow-sm"><input type="number" name="bp_sys" placeholder="BP Sys" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 outline-none font-bold shadow-sm"><input type="number" name="bp_dia" placeholder="BP Dia" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 outline-none font-bold shadow-sm"><input type="number" name="spo2" placeholder="SpO2 %" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 outline-none font-bold shadow-sm"></div></section>
+                    <section data-id="blood" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500"><div class="flex items-center gap-3 mb-6"><h4 class="font-extrabold text-slate-900 text-sm uppercase tracking-widest">Blood Work</h4><div class="h-px flex-1 bg-slate-100"></div></div><div class="grid grid-cols-2 gap-5 text-slate-900 font-bold"><input type="number" step="0.01" name="anc" id="input-anc" placeholder="ANC" class="bg-white p-5 rounded-2xl border border-slate-100 focus:border-indigo-500 shadow-sm outline-none"><input type="number" name="platelets" id="input-platelets" placeholder="Platelets" class="bg-white p-5 rounded-2xl border border-slate-100 focus:border-indigo-500 shadow-sm outline-none"><input type="number" step="0.1" name="wbc" placeholder="WBC" class="bg-white p-5 rounded-2xl border border-slate-100 focus:border-indigo-500 shadow-sm outline-none"><input type="number" step="0.1" name="hb" placeholder="Hb" class="bg-white p-5 rounded-2xl border border-slate-100 focus:border-indigo-500 shadow-sm outline-none"></div></section>
+                    <section data-id="meds" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500"><div class="flex items-center gap-3 mb-6"><h4 class="font-extrabold text-slate-900 text-sm uppercase tracking-widest">Medications</h4><div class="h-px flex-1 bg-slate-100"></div></div><div class="space-y-6"><div id="meds-list-container" class="space-y-4"></div><button type="button" id="btn-add-meds-item" class="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs hover:border-indigo-300 transition-all flex items-center justify-center gap-2 bg-white/50">+ Add</button></div></section>
+                    <section data-id="food" class="hidden animate-in fade-in duration-500"><div class="flex items-center gap-3 mb-6"><h4 class="font-extrabold text-slate-900 text-sm uppercase tracking-widest text-indigo-600">Food Intake</h4><div class="h-px flex-1 bg-slate-100"></div></div><div class="space-y-6"><div id="food-list-container" class="space-y-4"></div><button type="button" id="btn-add-food-item" class="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs hover:border-indigo-300 transition-all flex items-center justify-center gap-2 bg-white/50">+ Add</button></div></section>
+                    <section data-id="fluid" class="hidden animate-in fade-in duration-500"><div class="flex items-center gap-3 mb-6"><h4 class="font-extrabold text-slate-900 text-sm uppercase tracking-widest text-blue-600">Fluid Intake</h4><div class="h-px flex-1 bg-slate-100"></div></div><div class="space-y-6"><div id="fluid-list-container" class="space-y-4"></div><button type="button" id="btn-add-fluid-item" class="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs hover:border-blue-300 transition-all flex items-center justify-center gap-2 bg-white/50">+ Add</button></div></section>
+                    <section data-id="poopee" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500"><div class="flex items-center gap-3 mb-6"><h4 class="font-extrabold text-slate-900 text-sm uppercase tracking-widest">Poo & Pee</h4><div class="h-px flex-1 bg-slate-100"></div></div><div class="grid grid-cols-2 sm:grid-cols-3 gap-5"><input type="number" name="urine_out" placeholder="Urine (mL)" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 font-bold shadow-sm outline-none"><select name="urine_color" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 font-bold shadow-sm outline-none text-sm appearance-none"><option value="" selected disabled>Urine Color</option><option value="normal">Normal</option><option value="dark">Dark</option><option value="red">Bloody</option></select><input type="number" name="stool_freq" placeholder="Stool (g)" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 font-bold shadow-sm outline-none"><select name="stool_type" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 font-bold shadow-sm outline-none text-sm appearance-none"><option value="" selected disabled>Stool Type</option><option value="normal">Normal</option><option value="loose">Loose</option><option value="hard">Constipated</option></select><input type="number" name="vomit_count" placeholder="Vomit" class="w-full bg-white px-5 py-4 rounded-2xl border border-slate-100 focus:border-indigo-500 font-bold shadow-sm outline-none"></div></section>
+                    <section data-id="photos" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500"><div class="flex items-center gap-3 mb-6"><h4 class="font-extrabold text-slate-900 text-sm uppercase tracking-widest">Photos</h4><div class="h-px flex-1 bg-slate-100"></div></div><div class="space-y-4"><div id="photo-previews" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div><label class="w-full h-32 rounded-3xl border-2 border-dashed border-slate-200 bg-white/50 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-indigo-300 transition-all"><span class="text-3xl">📸</span><span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Take/Upload</span><input type="file" id="input-photo" accept="image/*" capture="camera" class="hidden" multiple></label></div></section>
+                </div>
+                <div id="emergency-alert" class="hidden p-6 bg-red-600 rounded-[2.5rem] text-white shadow-xl animate-pulse"><div class="flex items-start gap-4"><span class="text-3xl">🚨</span><div><p class="font-extrabold uppercase">Emergency</p><p class="text-xs font-bold opacity-90">High fever or critical ANC detected.</p></div></div></div>
+                <textarea name="notes" id="input-notes" rows="3" placeholder="Observations..." class="w-full bg-white px-6 py-5 rounded-[2rem] border border-slate-100 focus:border-indigo-500 text-slate-900 outline-none font-medium shadow-sm placeholder:text-slate-300"></textarea>
+            </form>
+            <div class="p-8 border-t border-slate-50 bg-white"><button id="btn-save-entry" type="button" disabled class="w-full bg-indigo-600 text-white font-extrabold py-5 rounded-3xl shadow-xl shadow-indigo-200 hover:bg-indigo-700 active:scale-95 disabled:bg-slate-100 disabled:text-slate-300 uppercase tracking-widest">Save Record</button></div>
+        </div>
+    </div>
+
+    <!-- DataLists -->
+    <datalist id="food_labels"><option value="Rice"><option value="Porridge"><option value="Meat"><option value="Vegetable"><option value="Fruit"></datalist>
+    <datalist id="fluid_labels"><option value="Water"><option value="Milk"><option value="Soup"><option value="Juice"></datalist>
+    <datalist id="meds_labels"><option value="Dexamethasone"><option value="Prednisolone"><option value="Methotrexate"><option value="Vincristine"></datalist>
+    <datalist id="food_units"><option value="bowl"><option value="plate"><option value="g"></datalist>
+    <datalist id="fluid_units"><option value="ml"><option value="cup"></datalist>
+    <datalist id="meds_units"><option value="mg"><option value="pill"></datalist>
+
+    <!-- Update Notification Toast -->
+    <div id="update-toast" class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md bg-indigo-600 text-white p-4 rounded-3xl shadow-2xl animate-in slide-in-from-bottom-10 duration-500 flex items-center justify-between gap-4 border border-indigo-500">
+        <div class="flex items-center gap-3">
+            <span class="text-xl">🚀</span>
+            <div>
+                <p class="text-xs font-black uppercase tracking-widest leading-none">New Version Available</p>
+                <p class="text-[10px] font-bold opacity-80 mt-1">Update to get the latest features.</p>
+            </div>
+        </div>
+        <button id="btn-update-app" class="bg-white text-indigo-600 px-5 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-transform">Update</button>
+    </div>
+
+    <script src="js/storage.js" type="module"></script>
+    <script src="js/app.js" type="module"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    // Check for updates periodically or on specific events
+                    reg.onupdatefound = () => {
+                        const newWorker = reg.installing;
+                        newWorker.onstatechange = () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // New version is ready! Show the toast.
+                                const toast = document.getElementById('update-toast');
+                                if (toast) toast.classList.remove('hidden');
+                            }
+                        };
+                    };
+                });
+            });
+
+            // Handle the Update button click
+            document.getElementById('btn-update-app').onclick = () => {
+                window.location.reload();
+            };
+
+            // Ensure the reload only happens once if triggered by controllerchange
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+/* Custom styles for clinical tracker */
+
+:root {
+    --safe-green: #10b981;
+    --warn-amber: #f59e0b;
+    --danger-red: #ef4444;
+}
+
+body {
+    -webkit-tap-highlight-color: transparent;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Custom scrollbar for a cleaner medical look */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
+
+/* Smooth transitions for navigation */
+.view-transition {
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Active navigation states */
+.nav-active {
+    @apply bg-blue-50 text-blue-700 font-medium;
+}
+
+/* Range input styling for Pain/Fatigue sliders */
+input[type="range"] {
+    @apply accent-blue-600;
+}
