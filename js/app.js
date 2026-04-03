@@ -65,7 +65,7 @@ const App = {
             const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
             const diffTime = today.getTime() - startDate.getTime();
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-            const b = document.createElement('span'); b.className = 'px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl text-[9px] md:text-[11px] font-extrabold bg-indigo-600 text-white border border-indigo-500 uppercase tracking-widest shadow-lg shadow-indigo-900/20 whitespace-nowrap';
+            const b = document.createElement('span'); b.className = 'px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black bg-indigo-600 text-white border border-indigo-500 uppercase tracking-widest shadow-lg shadow-indigo-900/20 whitespace-nowrap';
             b.textContent = `${a.name} Day ${diffDays}`; container.appendChild(b);
         });
     },
@@ -286,6 +286,3 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', App.init);
-window.App = App;
-window.storage = storage;
-window.ui = ui;
