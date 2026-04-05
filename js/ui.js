@@ -70,7 +70,7 @@ export const ui = {
         ui.elements.cycleBadgesMobile = document.getElementById('cycle-badges-container-mobile');
     },
 
-    updateBadge: (id, value, threshold, type) => {
+    updateBadge: (id, value, thresholds) => {
         const valEl = document.getElementById(`today-${id}`);
         const badgeEl = document.getElementById(`badge-${id}`);
         if (!valEl) return;
@@ -82,7 +82,11 @@ export const ui = {
         } else {
             valEl.textContent = typeof value === 'number' ? value.toFixed(1) : value;
             badgeEl.classList.remove('hidden');
-            const isDanger = (type === 'low') ? (value < threshold) : (value >= threshold);
+            let isDanger = false;
+            if (thresholds) {
+                if (thresholds.min !== null && thresholds.min !== undefined && thresholds.min !== '' && value < thresholds.min) isDanger = true;
+                if (thresholds.max !== null && thresholds.max !== undefined && thresholds.max !== '' && value >= thresholds.max) isDanger = true;
+            }
             valEl.className = `text-xl md:text-3xl font-black tracking-tighter ${isDanger ? 'text-red-600' : 'text-indigo-600'}`;
         }
     },

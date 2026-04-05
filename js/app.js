@@ -3,11 +3,12 @@ import { utils } from './utils.js';
 import { ui } from './ui.js';
 
 const App = {
-    state: { editingId: null, currentPhotos: [] },
+    state: { editingId: null, currentPhotos: [], settings: null },
 
     init: async () => {
         ui.refreshElements();
         await storage.init();
+        App.state.settings = await storage.getSettings();
         App.initFilters();
         App.setupEventListeners();
         App.handleRouting();
@@ -18,8 +19,39 @@ const App = {
 
     loadSettings: async () => {
         const settings = await storage.getSettings();
+        App.state.settings = settings;
         App.renderCyclesList(settings.cycles || []);
         App.updateActiveCycleBadge(settings.cycles || []);
+        
+        if (settings.emergency_thresholds) {
+            Object.entries(settings.emergency_thresholds).forEach(([key, range]) => {
+                const minEl = document.getElementById(`threshold-${key}-min`);
+                const maxEl = document.getElementById(`threshold-${key}-max`);
+                if (minEl) minEl.value = (range.min !== null && range.min !== undefined) ? range.min : '';
+                if (maxEl) maxEl.value = (range.max !== null && range.max !== undefined) ? range.max : '';
+            });
+        }
+    },
+
+    saveThresholds: async () => {
+        const s = await storage.getSettings();
+        if (!s.emergency_thresholds) s.emergency_thresholds = {};
+        
+        ['temp', 'anc', 'platelets', 'hb', 'wbc', 'bp_sys'].forEach(key => {
+            const minEl = document.getElementById(`threshold-${key}-min`);
+            const maxEl = document.getElementById(`threshold-${key}-max`);
+            if (minEl && maxEl) {
+                s.emergency_thresholds[key] = {
+                    min: minEl.value !== "" ? parseFloat(minEl.value) : null,
+                    max: maxEl.value !== "" ? parseFloat(maxEl.value) : null
+                };
+            }
+        });
+        
+        await storage.saveSettings(s);
+        App.state.settings = s;
+        alert('Thresholds saved!');
+        await App.loadDashboardData();
     },
 
     renderCyclesList: (cycles) => {
@@ -102,6 +134,7 @@ const App = {
         if (document.getElementById('btn-add-cycle')) document.getElementById('btn-add-cycle').onclick = () => App.openCycleForm();
         if (document.getElementById('btn-save-cycle')) document.getElementById('btn-save-cycle').onclick = App.saveCycle;
         if (document.getElementById('btn-cancel-cycle')) document.getElementById('btn-cancel-cycle').onclick = () => document.getElementById('cycle-form').classList.add('hidden');
+        if (document.getElementById('btn-save-thresholds')) document.getElementById('btn-save-thresholds').onclick = App.saveThresholds;
         if (form) form.oninput = App.validateForm; if (btnSave) btnSave.onclick = (e) => App.saveEntry(e);
         if (document.getElementById('btn-export-csv')) document.getElementById('btn-export-csv').onclick = App.exportToCSV;
         if (document.getElementById('btn-export-json')) document.getElementById('btn-export-json').onclick = App.exportToJSON;
@@ -193,14 +226,42 @@ const App = {
         chips.forEach(c => c.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-900'));
         if (emergencyAlert) emergencyAlert.classList.add('hidden');
         ['food', 'fluid', 'meds'].forEach(t => { const c = document.getElementById(`${t}-list-container`); if (c) c.innerHTML = ''; });
+        // Reload dashboard data to restore dashboard alert if needed
+        App.loadDashboardData();
     },
 
     validateForm: () => {
         const formData = new FormData(ui.elements.form); let hasData = App.state.currentPhotos.length > 0;
         for (let [k, v] of formData.entries()) { if (v && v !== "" && k !== 'notes' && k !== 'timestamp') hasData = true; }
         if (ui.elements.btnSave) ui.elements.btnSave.disabled = !hasData;
-        const t = parseFloat(formData.get('temp')), a = parseFloat(formData.get('anc')), isE = t >= 38.0 || (!isNaN(a) && a < 0.5);
-        if (ui.elements.emergencyAlert) ui.elements.emergencyAlert.classList.toggle('hidden', !isE);
+        
+        const thresholds = App.state.settings?.emergency_thresholds;
+        const problematic = [];
+        if (thresholds) {
+            const metrics = { temp: 'Temperature', anc: 'ANC', platelets: 'Platelets', hb: 'Hb', wbc: 'WBC', bp_sys: 'BP Systolic' };
+            Object.entries(metrics).forEach(([key, label]) => {
+                const val = parseFloat(formData.get(key));
+                if (!isNaN(val)) {
+                    const t = thresholds[key];
+                    if (t) {
+                        if (t.min !== null && t.min !== undefined && t.min !== '' && val < t.min) problematic.push(label);
+                        else if (t.max !== null && t.max !== undefined && t.max !== '' && val >= t.max) problematic.push(label);
+                    }
+                }
+            });
+        }
+        
+        if (ui.elements.emergencyAlert) {
+            const isE = problematic.length > 0;
+            ui.elements.emergencyAlert.classList.toggle('hidden', !isE);
+            const reasonEl = document.getElementById('emergency-reason');
+            if (reasonEl && isE) {
+                reasonEl.textContent = `Critical threshold exceeded: ${problematic.join(', ')}. Contact medical team.`;
+            }
+            // Hide dashboard alert while modal is open to avoid double alerts
+            const dAlert = document.getElementById('dashboard-emergency-alert');
+            if (dAlert) dAlert.classList.add('hidden');
+        }
     },
 
     saveEntry: async (e) => {
@@ -219,8 +280,68 @@ const App = {
         const entries = await storage.getEntries();
         const now = new Date(), y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0'), todayStr = `${y}-${m}-${d}`;
         const todayEntries = entries.filter(e => e.timestamp.split('T')[0] === todayStr).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-        const latestANC = entries.find(e => e.anc != null)?.anc, latestPLT = entries.find(e => e.platelets != null)?.platelets, latestWBC = entries.find(e => e.wbc != null)?.wbc;
-        ui.updateBadge('anc', latestANC, 0.5, 'low'); ui.updateBadge('platelets', latestPLT, 50, 'low'); ui.updateBadge('wbc', latestWBC, 4.0, 'low');
+        
+        const latestANC = todayEntries.find(e => e.anc != null)?.anc;
+        const latestPLT = todayEntries.find(e => e.platelets != null)?.platelets;
+        const latestWBC = todayEntries.find(e => e.wbc != null)?.wbc;
+        const latestHb = todayEntries.find(e => e.hb != null)?.hb;
+        const latestBPSys = todayEntries.find(e => e.bp_sys != null)?.bp_sys;
+        
+        const thresholds = App.state.settings?.emergency_thresholds;
+        ui.updateBadge('anc', latestANC, thresholds?.anc);
+        ui.updateBadge('platelets', latestPLT, thresholds?.platelets);
+        ui.updateBadge('wbc', latestWBC, thresholds?.wbc);
+
+        // Dashboard Emergency Check
+        const problematic = [];
+        if (thresholds) {
+            const check = (val, t, label) => {
+                if (val != null && t) {
+                    if (t.min != null && t.min !== '' && val < t.min) problematic.push(label);
+                    else if (t.max != null && t.max !== '' && val >= t.max) problematic.push(label);
+                }
+            };
+
+            check(latestANC, thresholds.anc, 'ANC');
+            check(latestPLT, thresholds.platelets, 'Platelets');
+            check(latestWBC, thresholds.wbc, 'WBC');
+            check(latestHb, thresholds.hb, 'Hb');
+            check(latestBPSys, thresholds.bp_sys, 'BP Systolic');
+
+            // Check today's max temp
+            const temps = todayEntries.map(e => e.temp).filter(v => v != null);
+            if (temps.length > 0) {
+                const maxTemp = Math.max(...temps);
+                check(maxTemp, thresholds.temp, 'Temperature');
+            }
+        }
+
+        const dAlert = document.getElementById('dashboard-emergency-alert');
+        const dReason = document.getElementById('dashboard-emergency-reason');
+        if (dAlert && dReason) {
+            const isE = problematic.length > 0;
+            dAlert.classList.toggle('hidden', !isE);
+            if (isE) dReason.textContent = `Critical levels detected: ${problematic.join(', ')}. Contact medical team.`;
+        }
+
+        // Calculate Water, Poo, Pee for today
+        let totalWater = 0, pooCount = 0, peeCount = 0;
+        todayEntries.forEach(e => {
+            // Water (specifically looking for "Water" in fluid items)
+            e.fluid_items?.forEach(fi => {
+                if (fi.label.toLowerCase().includes('water')) totalWater += fi.value;
+            });
+            // Poo (if stool data exists)
+            if (e.stool_freq != null || e.stool_type) pooCount++;
+            // Pee (if urine data exists)
+            if (e.urine_out != null || e.urine_color) peeCount++;
+        });
+
+        const waterEl = document.getElementById('today-water'), pooEl = document.getElementById('today-poo'), peeEl = document.getElementById('today-pee');
+        if (waterEl) waterEl.textContent = totalWater.toFixed(0);
+        if (pooEl) pooEl.textContent = pooCount;
+        if (peeEl) peeEl.textContent = peeCount;
+        
         ui.elements.todayList.innerHTML = '';
         if (todayEntries.length === 0) ui.elements.todayEmpty.classList.remove('hidden');
         else { ui.elements.todayEmpty.classList.add('hidden'); todayEntries.forEach(e => ui.elements.todayList.appendChild(ui.createEntryCard(e, App.openModalById, App.handleDelete))); }
@@ -271,10 +392,20 @@ const App = {
         const entries = (await storage.getEntries()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); if (entries.length === 0) return;
         const dailyData = {}; entries.forEach(e => { const date = e.timestamp.split('T')[0]; if (!dailyData[date]) dailyData[date] = { anc: null, platelets: null, fluids: 0, food: 0, weight: null, maxTemp: 0 }; if (e.anc != null) dailyData[date].anc = e.anc; if (e.platelets != null) dailyData[date].platelets = e.platelets; if (e.weight != null) dailyData[date].weight = e.weight; if (e.temp != null) dailyData[date].maxTemp = Math.max(dailyData[date].maxTemp, e.temp); e.fluid_items?.forEach(i => dailyData[date].fluids += i.value); e.food_items?.forEach(i => dailyData[date].food += i.value); });
         const scorecardContainer = document.getElementById('insights-scorecards'); if (scorecardContainer) {
+            const thresholds = App.state.settings?.emergency_thresholds;
             const allAnc = Object.values(dailyData).map(d => d.anc).filter(v => v !== null), lowestAnc = allAnc.length ? Math.min(...allAnc).toFixed(2) : '--';
+            let ancDanger = false;
+            if (thresholds?.anc && lowestAnc !== '--') {
+                if (thresholds.anc.min !== null && lowestAnc < thresholds.anc.min) ancDanger = true;
+                if (thresholds.anc.max !== null && lowestAnc >= thresholds.anc.max) ancDanger = true;
+            }
+
             const allWeights = Object.values(dailyData).map(d => d.weight).filter(v => v !== null); let weightTrend = '--'; if (allWeights.length >= 2) { const diff = (allWeights[allWeights.length - 1] - allWeights[0]).toFixed(1); weightTrend = (diff > 0 ? '+' : '') + diff + 'kg'; }
-            const feverDays = Object.values(dailyData).filter(d => d.maxTemp >= 38.0).length, avgFluid = (Object.values(dailyData).reduce((sum, d) => sum + d.fluids, 0) / Object.keys(dailyData).length).toFixed(0);
-            scorecardContainer.innerHTML = `<div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Lowest ANC</p><p class="text-2xl font-black ${lowestAnc < 0.5 ? 'text-red-600' : 'text-indigo-600'}">${lowestAnc}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Weight Change</p><p class="text-2xl font-black text-slate-900">${weightTrend}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Fever Days</p><p class="text-2xl font-black ${feverDays > 0 ? 'text-orange-500' : 'text-slate-900'}">${feverDays}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Avg Fluids</p><p class="text-2xl font-black text-blue-600">${avgFluid}<span class="text-xs ml-0.5 opacity-50">ml</span></p></div>`;
+            
+            const tempMax = thresholds?.temp?.max || 38.0;
+            const feverDays = Object.values(dailyData).filter(d => d.maxTemp >= tempMax).length, avgFluid = (Object.values(dailyData).reduce((sum, d) => sum + d.fluids, 0) / Object.keys(dailyData).length).toFixed(0);
+            
+            scorecardContainer.innerHTML = `<div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Lowest ANC</p><p class="text-2xl font-black ${ancDanger ? 'text-red-600' : 'text-indigo-600'}">${lowestAnc}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Weight Change</p><p class="text-2xl font-black text-slate-900">${weightTrend}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Fever Days</p><p class="text-2xl font-black ${feverDays > 0 ? 'text-orange-500' : 'text-slate-900'}">${feverDays}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Avg Fluids</p><p class="text-2xl font-black text-blue-600">${avgFluid}<span class="text-xs ml-0.5 opacity-50">ml</span></p></div>`;
         }
         const dates = Object.keys(dailyData), labels = dates.map(d => utils.formatDate(d).split(' (')[0]);
         App.drawTrendChart('chart-anc', labels, Object.values(dailyData).map(d => d.anc), 'ANC', '#6366f1'); App.drawTrendChart('chart-platelets', labels, Object.values(dailyData).map(d => d.platelets), 'Platelets', '#3b82f6'); App.drawTrendChart('chart-temp', labels, Object.values(dailyData).map(d => d.maxTemp || null), 'Max Temp', '#ef4444'); App.drawTrendChart('chart-weight', labels, Object.values(dailyData).map(d => d.weight), 'Weight', '#64748b');

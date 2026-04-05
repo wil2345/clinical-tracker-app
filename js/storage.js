@@ -23,8 +23,14 @@ const DEFAULT_SUGGESTIONS = {
 
 const DEFAULT_SETTINGS = {
     cycles: [], // Array of { id, name, startDate, endDate }
-    emergency_temp: 38.0,
-    emergency_anc: 0.5
+    emergency_thresholds: {
+        temp: { min: null, max: 38.0 },
+        anc: { min: 1.5, max: null },
+        platelets: { min: 150, max: 450 },
+        hb: { min: 11.0, max: null },
+        wbc: { min: 5.0, max: 15.0 },
+        bp_sys: { min: 80, max: 110 }
+    }
 };
 
 let db = null;
@@ -228,7 +234,24 @@ export const storage = {
             const request = store.get('app_settings');
 
             request.onsuccess = () => {
-                resolve(request.result || DEFAULT_SETTINGS);
+                const saved = request.result;
+                if (!saved) {
+                    resolve(DEFAULT_SETTINGS);
+                    return;
+                }
+                
+                // Merge emergency_thresholds if missing or old format
+                if (!saved.emergency_thresholds) {
+                    saved.emergency_thresholds = { ...DEFAULT_SETTINGS.emergency_thresholds };
+                    // Preserve old values if they exist during migration
+                    if (saved.emergency_temp !== undefined) saved.emergency_thresholds.temp.max = saved.emergency_temp;
+                    if (saved.emergency_anc !== undefined) saved.emergency_thresholds.anc.min = saved.emergency_anc;
+                } else {
+                    // Ensure all default keys exist in the saved thresholds
+                    saved.emergency_thresholds = { ...DEFAULT_SETTINGS.emergency_thresholds, ...saved.emergency_thresholds };
+                }
+                
+                resolve(saved);
             };
         });
     },

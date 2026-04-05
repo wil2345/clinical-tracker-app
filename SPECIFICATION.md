@@ -9,47 +9,43 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 
 ### Visual Aesthetic
 - **Theme:** Midnight Slate & Indigo.
-- **Header/Footer:** Fixed `bg-slate-900` with `backdrop-blur` (Glassmorphism).
+- **Header/Footer:** Sticky `bg-slate-900` with `backdrop-blur` (Glassmorphism).
 - **Safe Areas:** Full support for iOS/Android status bars and home indicators (`env(safe-area-inset)`).
 - **Elevation:** High-depth `shadow-premium` for cards and modals.
 - **Typography:** Inter font family. High-contrast hierarchy for clinical clarity.
 
 ### Interaction Design
 - **Social-Post Cards:** Records styled like social media posts with "Observations" priority.
-- **Fixed Navigation:** Top-fixed dynamic header displaying current view context and active cycle badges. Primary actions are unified in the sidebar/bottom-nav to maintain a clean header.
-- **Dynamic Content:** Header title and cycle badges update instantly based on active view and treatment dates.
+- **Fixed Navigation:** Top-sticky dynamic header displaying current view context and active cycle badges.
+- **Unified Emergency Alerts:** Full-width rectangular red alert bars for both Dashboard and Modal, sticky to the top of the viewport.
 - **Smart Learning:** Automatic suggestion engine for medications, foods, and units.
 
 ---
 
-## 3. Current Implementation (Status: Production Ready - v1.2.0)
+## 3. Current Implementation (Status: Production Ready - v1.2.1)
 
 ### Core PWA & Storage
 - [x] **PWA Infrastructure:** Installable standalone app with Service Worker (`sw.js`) for offline support.
-- [x] **Auto-Update:** Non-disruptive Toast Notification update logic (prevents data loss from forced reloads when new versions are deployed).
+- [x] **Auto-Update:** Non-disruptive Toast Notification update logic.
 - [x] **IndexedDB Migration:** High-capacity, asynchronous storage replacing the 5MB localStorage limit.
-- [x] **Source Tracking:** Every record is tagged as `manual`, `generated`, or `import` for clinical audit.
+- [x] **Settings Migration:** Automatic merging of new default settings with existing user data.
 
 ### Clinical Management
-- [x] **Historical Blood Counts:** The dashboard badges for **ANC**, **PLT**, and **WBC** dynamically query the database to always display the absolute latest values from the patient's entire clinical history.
-- [x] **Multi-Cycle Management:** Support for defining multiple overlapping treatment cycles (e.g., Induction, Pulse).
-- [x] **Dynamic Day Counter:** Automatic calculation of "Day X" for all active cycles, displayed side-by-side in the top header.
-- [x] **Clinical Photo Support:** Native camera/gallery integration with smart resizing (800px) and compression (max 5 photos per record).
-- [x] **Emergency Logic:** Temperature >= 38.0°C or ANC < 0.5 triggers real-time red UI alerts.
-
-### Data Portability
-- [x] **Export CSV:** Generation of spreadsheet-compatible clinical reports for medical review.
-- [x] **Full Backup (JSON):** Export/Import logic for total data preservation and device migration.
-- [x] **Maintenance Tools:** Targeted clearing of "Generated" test data while preserving manual clinical records.
+- [x] **Daily Blood Counts:** Dashboard scorecards for **ANC**, **PLT**, and **WBC** dynamically display the latest values recorded *specifically for today*.
+- [x] **Intake & Output Tracking:** Real-time dashboard counters for **Water (mL)**, **Poo Count**, and **Pee Count** for the current day.
+- [x] **Flexible Emergency Thresholds:** User-configurable `<` and `>=` thresholds for Temperature, ANC, Platelets, Hb, WBC, and BP Systolic.
+- [x] **Real-time Diagnostic Alerts:** Sticky red UI bars that identify specific problematic metrics (e.g., "Critical levels detected: ANC").
+- [x] **Multi-Cycle Management:** Support for defining multiple overlapping treatment cycles with dynamic "Day X" counters in the header.
+- [x] **Clinical Photo Support:** Native camera/gallery integration with resizing and compression.
 
 ---
 
 ## 4. Quality Assurance & Testing
 
 ### Validation Framework
-- **E2E Automation:** 22 comprehensive Playwright test cases covering Desktop and Mobile environments.
-- **Asynchronous Integrity:** All tests validated against the new IndexedDB storage layer and async orchestrator.
-- **PWA Verification:** Functional validation of header persistence, safe-area padding, update toasts, and dynamic routing logic.
+- **E2E Automation:** 12 comprehensive Playwright test cases covering core workflows and emergency logic.
+- **Threshold Verification:** Automated testing of custom threshold configuration and alert triggering.
+- **Asynchronous Integrity:** Validated against the IndexedDB storage layer.
 
 ---
 
@@ -63,11 +59,14 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 | `source` | String | `manual`, `generated`, or `import`. |
 | `photos` | Array (B64) | Up to 5 compressed JPEG strings. |
 | `notes` | String | Clinical observations. |
-| `temp` | Number | Body temperature (rounded to 1 decimal). |
-| `anc` | Number | ANC count (rounded to 2 decimals). |
+| `temp` | Number | Body temperature. |
+| `anc` | Number | ANC count. |
 | `platelets` | Number | Platelet count. |
 | `wbc` | Number | White Blood Cell count. |
 | `hb` | Number | Hemoglobin count. |
+| `bp_sys` | Number | Systolic Blood Pressure. |
+| `urine_out` | Number | Urine output in mL. |
+| `stool_freq` | Number | Stool frequency/amount. |
 | `meds_items` | Array of Obj | `{ label, value, unit }`. |
 | `food_items` | Array of Obj | `{ label, value, unit }`. |
 | `fluid_items`| Array of Obj | `{ label, value, unit }`. |
@@ -76,8 +75,7 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `cycles` | Array of Obj | `{ id, name, startDate, endDate }`. |
-| `emergency_temp`| Number | User-defined threshold (default 38.0). |
-| `emergency_anc` | Number | User-defined threshold (default 0.5). |
+| `emergency_thresholds`| Object | `{ [metric]: { min, max } }` for Temperature, ANC, PLT, Hb, WBC, BP Sys. |
 
 ---
 

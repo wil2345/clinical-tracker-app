@@ -96,4 +96,47 @@ test.describe('Clinical Tracker Core Workflow', () => {
     await expect(badges.first()).toContainText(/Maintenance Day \d+/);
     await expect(badges.nth(1)).toContainText(/Pulse Day \d+/);
   });
+
+  test('should allow configuring custom emergency thresholds', async ({ page, isMobile }) => {
+    await page.goto('/#settings');
+    
+    // Set Platelets threshold to 100 (high)
+    await page.fill('#threshold-platelets-min', '100');
+    await page.click('#btn-save-thresholds');
+    
+    // Check alert on Dashboard
+    await page.goto('/#dashboard');
+    
+    if (isMobile) {
+        await page.click('#btn-add-entry-mobile', { force: true });
+    } else {
+        await page.evaluate(() => window.App.openModal());
+    }
+    
+    await page.click('button[data-section="blood"]');
+    await page.fill('input[name="platelets"]', '90'); // 90 < 100 should trigger alert
+    await expect(page.locator('#emergency-alert')).toBeVisible();
+    
+    // Close modal before proceeding
+    if (isMobile) {
+        await page.click('#btn-close-modal');
+    } else {
+        await page.evaluate(() => window.App.closeModal());
+    }
+    
+    // Change threshold to 50
+    await page.goto('/#settings');
+    await page.fill('#threshold-platelets-min', '50');
+    await page.click('#btn-save-thresholds');
+    
+    await page.goto('/#dashboard');
+    if (isMobile) {
+        await page.click('#btn-add-entry-mobile', { force: true });
+    } else {
+        await page.evaluate(() => window.App.openModal());
+    }
+    await page.click('button[data-section="blood"]');
+    await page.fill('input[name="platelets"]', '90'); // 90 > 50 should NOT trigger alert
+    await expect(page.locator('#emergency-alert')).not.toBeVisible();
+  });
 });
