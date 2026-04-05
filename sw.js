@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clinical-tracker-v1.2.0';
+const CACHE_NAME = 'clinical-tracker-v1.3.2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
