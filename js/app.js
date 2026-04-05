@@ -264,9 +264,6 @@ const App = {
             if (reasonEl && isE) {
                 reasonEl.textContent = `Critical threshold exceeded: ${problematic.join(', ')}. Contact medical team.`;
             }
-            // Hide dashboard alert while modal is open to avoid double alerts
-            const dAlert = document.getElementById('dashboard-emergency-alert');
-            if (dAlert) dAlert.classList.add('hidden');
         }
     },
 
@@ -289,51 +286,19 @@ const App = {
 
     loadDashboardData: async () => {
         const entries = await storage.getEntries();
+        const sortedEntries = [...entries].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
         const now = new Date(), y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0'), todayStr = `${y}-${m}-${d}`;
         const todayEntries = entries.filter(e => e.timestamp.split('T')[0] === todayStr).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        const latestANC = todayEntries.find(e => e.anc != null)?.anc;
-        const latestPLT = todayEntries.find(e => e.platelets != null)?.platelets;
-        const latestWBC = todayEntries.find(e => e.wbc != null)?.wbc;
-        const latestHb = todayEntries.find(e => e.hb != null)?.hb;
-        const latestBPSys = todayEntries.find(e => e.bp_sys != null)?.bp_sys;
+        const latestANC = sortedEntries.find(e => e.anc != null)?.anc;
+        const latestPLT = sortedEntries.find(e => e.platelets != null)?.platelets;
+        const latestWBC = sortedEntries.find(e => e.wbc != null)?.wbc;
         
         const thresholds = App.state.settings?.emergency_thresholds;
         ui.updateBadge('anc', latestANC, thresholds?.anc);
         ui.updateBadge('platelets', latestPLT, thresholds?.platelets);
         ui.updateBadge('wbc', latestWBC, thresholds?.wbc);
-
-        // Dashboard Emergency Check
-        const problematic = [];
-        if (thresholds) {
-            const check = (val, t, label) => {
-                if (val != null && t) {
-                    if (t.min != null && t.min !== '' && val < t.min) problematic.push(label);
-                    else if (t.max != null && t.max !== '' && val >= t.max) problematic.push(label);
-                }
-            };
-
-            check(latestANC, thresholds.anc, 'ANC');
-            check(latestPLT, thresholds.platelets, 'Platelets');
-            check(latestWBC, thresholds.wbc, 'WBC');
-            check(latestHb, thresholds.hb, 'Hb');
-            check(latestBPSys, thresholds.bp_sys, 'BP Systolic');
-
-            // Check today's max temp
-            const temps = todayEntries.map(e => e.temp).filter(v => v != null);
-            if (temps.length > 0) {
-                const maxTemp = Math.max(...temps);
-                check(maxTemp, thresholds.temp, 'Temperature');
-            }
-        }
-
-        const dAlert = document.getElementById('dashboard-emergency-alert');
-        const dReason = document.getElementById('dashboard-emergency-reason');
-        if (dAlert && dReason) {
-            const isE = problematic.length > 0;
-            dAlert.classList.toggle('hidden', !isE);
-            if (isE) dReason.textContent = `Critical levels detected: ${problematic.join(', ')}. Contact medical team.`;
-        }
 
         // Calculate Water, Poo, Pee for today
         let totalWater = 0, pooCount = 0, peeCount = 0;

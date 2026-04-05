@@ -17,13 +17,13 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 ### Interaction Design
 - **Social-Post Cards:** Records styled like social media posts with "Observations" priority.
 - **Fixed Navigation:** Top-sticky dynamic header displaying current view context and active cycle badges.
-- **Unified Emergency Alerts:** Full-width rectangular red alert bars for both Dashboard and Modal, sticky to the top of the viewport.
+- **Unified Emergency Alerts:** Full-width rectangular red alert bar for the Add Entry Modal, sticky to the top of the viewport. (Dashboard alert disabled for clarity).
 - **Mobile Optimized:** Disabled horizontal swipe-to-navigate gestures (`overscroll-behavior-x: none`) to prevent accidental browser navigation and ensure a robust PWA experience.
 - **Smart Learning:** Automatic suggestion engine for medications, foods, and units.
 
 ---
 
-## 3. Current Implementation (Status: Production Ready - v1.3.0)
+## 3. Current Implementation (Status: Production Ready - v1.3.1)
 
 ### Core PWA & Storage
 - [x] **PWA Infrastructure:** Installable standalone app with Service Worker (`sw.js`) for offline support.
@@ -32,11 +32,11 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 - [x] **Settings Migration:** Automatic merging of new default settings with existing user data.
 
 ### Clinical Management
-- [x] **Daily Blood Counts:** Dashboard scorecards for **ANC**, **PLT**, and **WBC** dynamically display the latest values recorded *specifically for today*.
+- [x] **Recent Blood Counts:** Dashboard scorecards for **ANC**, **PLT**, and **WBC** dynamically display the absolute latest values recorded across all entries.
 - [x] **Intake & Output Tracking:** Real-time dashboard counters for **Water (mL)**, **Poo Count**, and **Pee Count** for the current day.
 - [x] **Clinical Events:** Support for recording discrete events (e.g., Vomiting, Fever, Seizure) with a searchable label and multi-line remarks.
 - [x] **Flexible Emergency Thresholds:** User-configurable `<` and `>=` thresholds for Temperature, ANC, Platelets, Hb, WBC, and BP Systolic.
-- [x] **Real-time Diagnostic Alerts:** Sticky red UI bars that identify specific problematic metrics (e.g., "Critical levels detected: ANC").
+- [x] **Real-time Diagnostic Alerts:** Sticky red UI bars that identify specific problematic metrics during entry creation.
 - [x] **Multi-Cycle Management:** Support for defining multiple overlapping treatment cycles with dynamic "Day X" counters in the header.
 - [x] **Clinical Photo Support:** Native camera/gallery integration with resizing and compression.
 

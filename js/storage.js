@@ -2,7 +2,7 @@
  * IndexedDB Abstraction Layer
  */
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.3.1';
 
 const DB_NAME = 'clinical_tracker_db';
 const DB_VERSION = 1;
