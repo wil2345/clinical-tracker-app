@@ -19,6 +19,7 @@
             width: 100%;
             position: relative;
             -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: none;
         }
 
         body {
@@ -313,6 +314,21 @@
                     <div class="h-64"><canvas id="chart-weight"></canvas></div>
                 </div>
             </div>
+            <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-premium border border-slate-100 flex flex-col gap-6">
+                <div class="flex items-center gap-4 px-2">
+                    <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-xl">🔔</div>
+                    <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest">Clinical Events History</h4>
+                </div>
+                <div id="insights-events-container" class="overflow-hidden rounded-2xl border border-slate-100">
+                    <div class="grid grid-cols-2 bg-slate-50 border-b border-slate-100 p-4">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date & Time</span>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Event Name</span>
+                    </div>
+                    <div id="insights-events-list" class="divide-y divide-slate-50">
+                        <!-- Events will be injected here -->
+                    </div>
+                </div>
+            </div>
         </section>
         <section id="view-settings" class="hidden flex-col gap-8 animate-in fade-in duration-700">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -469,7 +485,7 @@
                         <div class="flex items-center gap-3">
                             <h4 class="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Maintenance</h4>
                             <span
-                                class="text-[9px] font-black text-slate-300 border border-slate-200 px-1.5 py-0.5 rounded-md">V1.1.1</span>
+                                class="text-[9px] font-black text-slate-300 border border-slate-200 px-1.5 py-0.5 rounded-md">V1.3.0</span>
                         </div>
                     </div>
                     <div class="flex flex-col md:flex-row gap-4"><button id="btn-seed-data"
@@ -530,7 +546,9 @@
                             class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1">🚽
                             Poo/Pee</button><button type="button" data-section="photos"
                             class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1">📸
-                            Photos</button></div>
+                            Photos</button><button type="button" data-section="event"
+                            class="chip w-full py-3 rounded-2xl border border-slate-200 text-[11px] font-bold text-slate-600 bg-white hover:border-indigo-400 transition-all shadow-sm flex flex-col items-center justify-center gap-1">🔔
+                            Event</button></div>
                 </div>
                 <div id="sections-container" class="space-y-10">
                     <section data-id="vitals" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -605,6 +623,19 @@
                                 id="btn-add-fluid-item"
                                 class="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs hover:border-blue-300 transition-all bg-white/50">+
                                 Add</button>
+                        </div>
+                    </section>
+                    <section data-id="event" class="hidden animate-in fade-in duration-500">
+                        <div class="flex items-center gap-3 mb-6">
+                            <h4 class="font-extrabold text-slate-900 text-sm uppercase tracking-widest text-purple-600">
+                                Clinical Events</h4>
+                            <div class="h-px flex-1 bg-slate-100"></div>
+                        </div>
+                        <div class="space-y-6">
+                            <div id="event-list-container" class="space-y-4"></div><button type="button"
+                                id="btn-add-event-item"
+                                class="w-full py-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold text-xs hover:border-purple-300 transition-all bg-white/50">+
+                                Add Event</button>
                         </div>
                     </section>
                     <section data-id="poopee" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -691,6 +722,13 @@
     </datalist><datalist id="meds_units">
         <option value="mg">
         <option value="pill">
+    </datalist><datalist id="event_labels">
+        <option value="Vomiting">
+        <option value="Fever">
+        <option value="Seizure">
+        <option value="Rash">
+        <option value="Diarrhea">
+        <option value="Pain">
     </datalist>
     <script src="js/storage.js" type="module"></script>
     <script src="js/app.js" type="module"></script>

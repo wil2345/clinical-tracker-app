@@ -139,4 +139,24 @@ test.describe('Clinical Tracker Core Workflow', () => {
     await page.fill('input[name="platelets"]', '90'); // 90 > 50 should NOT trigger alert
     await expect(page.locator('#emergency-alert')).not.toBeVisible();
   });
+
+  test('should record clinical events with remarks', async ({ page, isMobile }) => {
+    if (isMobile) {
+        await page.click('#btn-add-entry-mobile', { force: true });
+    } else {
+        await page.evaluate(() => window.App.openModal());
+    }
+    
+    await page.click('button[data-section="event"]');
+    await page.click('#btn-add-event-item');
+    
+    await page.fill('input[name="event_label[]"]', 'Fever');
+    await page.fill('textarea[name="event_remarks[]"]', 'Started at 2 PM, 38.2C');
+    
+    await page.click('#btn-save-entry');
+    
+    const entry = page.locator('#today-list > div').first();
+    await expect(entry).toContainText('Fever');
+    await expect(entry).toContainText('Started at 2 PM, 38.2C');
+  });
 });

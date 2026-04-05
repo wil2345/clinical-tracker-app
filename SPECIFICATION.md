@@ -18,11 +18,12 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 - **Social-Post Cards:** Records styled like social media posts with "Observations" priority.
 - **Fixed Navigation:** Top-sticky dynamic header displaying current view context and active cycle badges.
 - **Unified Emergency Alerts:** Full-width rectangular red alert bars for both Dashboard and Modal, sticky to the top of the viewport.
+- **Mobile Optimized:** Disabled horizontal swipe-to-navigate gestures (`overscroll-behavior-x: none`) to prevent accidental browser navigation and ensure a robust PWA experience.
 - **Smart Learning:** Automatic suggestion engine for medications, foods, and units.
 
 ---
 
-## 3. Current Implementation (Status: Production Ready - v1.2.1)
+## 3. Current Implementation (Status: Production Ready - v1.3.0)
 
 ### Core PWA & Storage
 - [x] **PWA Infrastructure:** Installable standalone app with Service Worker (`sw.js`) for offline support.
@@ -33,10 +34,16 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 ### Clinical Management
 - [x] **Daily Blood Counts:** Dashboard scorecards for **ANC**, **PLT**, and **WBC** dynamically display the latest values recorded *specifically for today*.
 - [x] **Intake & Output Tracking:** Real-time dashboard counters for **Water (mL)**, **Poo Count**, and **Pee Count** for the current day.
+- [x] **Clinical Events:** Support for recording discrete events (e.g., Vomiting, Fever, Seizure) with a searchable label and multi-line remarks.
 - [x] **Flexible Emergency Thresholds:** User-configurable `<` and `>=` thresholds for Temperature, ANC, Platelets, Hb, WBC, and BP Systolic.
 - [x] **Real-time Diagnostic Alerts:** Sticky red UI bars that identify specific problematic metrics (e.g., "Critical levels detected: ANC").
 - [x] **Multi-Cycle Management:** Support for defining multiple overlapping treatment cycles with dynamic "Day X" counters in the header.
 - [x] **Clinical Photo Support:** Native camera/gallery integration with resizing and compression.
+
+### Data & Insights
+- [x] **Clinical Events History:** A dedicated table in the Insights view listing all recorded events by date/time, featuring expandable rows for detailed remarks.
+- [x] **Enhanced CSV Export:** Data exports include a dedicated "Events" column concatenating all event labels and remarks for clinical review.
+- [x] **Data Visualization:** Integration of multi-cycle trend analysis for ANC, Platelets, Temperature, and Weight.
 
 ---
 
@@ -70,6 +77,7 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 | `meds_items` | Array of Obj | `{ label, value, unit }`. |
 | `food_items` | Array of Obj | `{ label, value, unit }`. |
 | `fluid_items`| Array of Obj | `{ label, value, unit }`. |
+| `event_items`| Array of Obj | `{ label, remarks }`. |
 
 ### `Settings` Object
 | Field | Type | Description |

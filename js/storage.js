@@ -2,7 +2,7 @@
  * IndexedDB Abstraction Layer
  */
 
-export const APP_VERSION = '1.1.1';
+export const APP_VERSION = '1.3.0';
 
 const DB_NAME = 'clinical_tracker_db';
 const DB_VERSION = 1;
@@ -16,6 +16,7 @@ const DEFAULT_SUGGESTIONS = {
     food_labels: ['Rice', 'Porridge', 'Meat', 'Vegetable', 'Fruit', 'Supplement'],
     fluid_labels: ['Water', 'Milk', 'Soup', 'Juice', 'Electrolyte'],
     meds_labels: ['Dexamethasone', 'Prednisolone', 'Methotrexate', 'Vincristine', 'Ondansetron', 'Allopurinol'],
+    event_labels: ['Vomiting', 'Fever', 'Seizure', 'Rash', 'Diarrhea', 'Pain'],
     food_units: ['bowl', 'plate', 'g', 'pcs'],
     fluid_units: ['ml', 'cup', 'oz'],
     meds_units: ['mg', 'pill', 'dose', 'ml']

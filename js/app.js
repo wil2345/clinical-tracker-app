@@ -128,7 +128,7 @@ const App = {
         if (document.getElementById('tab-history-calendar')) document.getElementById('tab-history-calendar').onclick = () => App.switchHistoryTab('calendar');
         if (btnAddMobile) btnAddMobile.onclick = () => App.openModal(); if (btnClose) btnClose.onclick = App.closeModal;
         chips.forEach(c => c.onclick = () => { const s = document.querySelector(`section[data-id="${c.dataset.section}"]`); if (s) { s.classList.toggle('hidden'); c.classList.toggle('bg-indigo-100'); c.classList.toggle('border-indigo-300'); c.classList.toggle('text-indigo-900'); } });
-        ['food', 'fluid', 'meds'].forEach(t => { const b = document.getElementById(`btn-add-${t}-item`); if (b) b.onclick = () => App.addItemRow(t); });
+        ['food', 'fluid', 'meds', 'event'].forEach(t => { const b = document.getElementById(`btn-add-${t}-item`); if (b) b.onclick = () => App.addItemRow(t); });
         if (document.getElementById('btn-seed-data')) document.getElementById('btn-seed-data').onclick = App.seedTestData;
         if (document.getElementById('btn-clear-test-data')) document.getElementById('btn-clear-test-data').onclick = App.clearTestData;
         if (document.getElementById('btn-add-cycle')) document.getElementById('btn-add-cycle').onclick = () => App.openCycleForm();
@@ -193,18 +193,24 @@ const App = {
 
     addItemRow: (type, data = null) => {
         const c = document.getElementById(`${type}-list-container`); if (!c) return;
-        const item = data || { label: '', value: '', unit: type === 'food' ? 'g' : (type === 'fluid' ? 'ml' : 'mg') };
+        const item = data || (type === 'event' ? { label: '', remarks: '' } : { label: '', value: '', unit: type === 'food' ? 'g' : (type === 'fluid' ? 'ml' : 'mg') });
         const r = document.createElement('div'); r.className = `${type}-row p-4 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-3 relative group`;
-        r.innerHTML = `<div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Name</label><input type="text" list="${type}_labels" name="${type}_label[]" value="${item.label}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
-            <div class="grid grid-cols-2 gap-3"><div><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Value</label><input type="number" step="0.1" name="${type}_value[]" value="${item.value}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
-            <div><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Unit</label><input type="text" list="${type}_units" name="${type}_unit[]" value="${item.unit}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div></div>
-            <button type="button" class="btn-remove-item absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center font-bold">×</button>`;
+        if (type === 'event') {
+            r.innerHTML = `<div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Event Name</label><input type="text" list="event_labels" name="event_label[]" value="${item.label}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
+                <div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Remarks</label><textarea name="event_remarks[]" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none" rows="3">${item.remarks || ''}</textarea></div>
+                <button type="button" class="btn-remove-item absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center font-bold">×</button>`;
+        } else {
+            r.innerHTML = `<div class="space-y-1"><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Name</label><input type="text" list="${type}_labels" name="${type}_label[]" value="${item.label}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
+                <div class="grid grid-cols-2 gap-3"><div><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Value</label><input type="number" step="0.1" name="${type}_value[]" value="${item.value}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div>
+                <div><label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Unit</label><input type="text" list="${type}_units" name="${type}_unit[]" value="${item.unit}" class="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-100 text-sm font-bold outline-none"></div></div>
+                <button type="button" class="btn-remove-item absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center font-bold">×</button>`;
+        }
         r.querySelector('.btn-remove-item').onclick = () => { r.remove(); App.validateForm(); }; c.appendChild(r);
     },
 
     openModal: (entry = null) => {
         const { modal, modalTitle, timestamp, form, sections, chips } = ui.elements; if (!modal) return; modal.classList.remove('hidden');
-        ['food', 'fluid', 'meds'].forEach(t => { const c = document.getElementById(`${t}-list-container`); if (c) c.innerHTML = ''; });
+        ['food', 'fluid', 'meds', 'event'].forEach(t => { const c = document.getElementById(`${t}-list-container`); if (c) c.innerHTML = ''; });
         if (entry && entry.id) {
             App.state.editingId = entry.id; App.state.currentPhotos = entry.photos || []; App.renderPhotoPreviews();
             modalTitle.textContent = 'Edit Record'; timestamp.value = entry.timestamp;
@@ -213,7 +219,7 @@ const App = {
                 if (i.type === 'checkbox') i.checked = v === true; else i.value = v;
                 const s = i.closest('section'); if (s && s.dataset.id !== 'photos' && s.classList.contains('hidden')) { s.classList.remove('hidden'); const chip = document.querySelector(`.chip[data-section="${s.dataset.id}"]`); if (chip) chip.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-900'); }
             });
-            ['food', 'fluid', 'meds'].forEach(t => { if (entry[`${t}_items`]?.length > 0) { entry[`${t}_items`].forEach(it => App.addItemRow(t, it)); const s = document.querySelector(`section[data-id="${t}"]`), c = document.querySelector(`.chip[data-section="${t}"]`); if (s) s.classList.remove('hidden'); if (c) c.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-900'); } });
+            ['food', 'fluid', 'meds', 'event'].forEach(t => { if (entry[`${t}_items`]?.length > 0) { entry[`${t}_items`].forEach(it => App.addItemRow(t, it)); const s = document.querySelector(`section[data-id="${t}"]`), c = document.querySelector(`.chip[data-section="${t}"]`); if (s) s.classList.remove('hidden'); if (c) c.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-900'); } });
             if (App.state.currentPhotos.length > 0) { const s = document.querySelector('section[data-id="photos"]'), c = document.querySelector('.chip[data-section="photos"]'); if (s) s.classList.remove('hidden'); if (c) c.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-900'); }
         } else { App.state.editingId = null; App.state.currentPhotos = []; App.renderPhotoPreviews(); modalTitle.textContent = 'Add Record'; timestamp.value = (entry && entry.timestamp) ? entry.timestamp : utils.getLocalISOString(); }
         App.validateForm();
@@ -225,7 +231,7 @@ const App = {
         App.state.currentPhotos = []; sections.forEach(s => s.classList.add('hidden'));
         chips.forEach(c => c.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-900'));
         if (emergencyAlert) emergencyAlert.classList.add('hidden');
-        ['food', 'fluid', 'meds'].forEach(t => { const c = document.getElementById(`${t}-list-container`); if (c) c.innerHTML = ''; });
+        ['food', 'fluid', 'meds', 'event'].forEach(t => { const c = document.getElementById(`${t}-list-container`); if (c) c.innerHTML = ''; });
         // Reload dashboard data to restore dashboard alert if needed
         App.loadDashboardData();
     },
@@ -266,10 +272,15 @@ const App = {
 
     saveEntry: async (e) => {
         if (e) e.preventDefault(); const formData = new FormData(ui.elements.form);
-        const entry = { timestamp: ui.elements.timestamp.value, notes: formData.get('notes'), source: 'manual', food_items: [], fluid_items: [], meds_items: [] };
+        const entry = { timestamp: ui.elements.timestamp.value, notes: formData.get('notes'), source: 'manual', food_items: [], fluid_items: [], meds_items: [], event_items: [] };
         const activeS = Array.from(ui.elements.sections).filter(s => !s.classList.contains('hidden')).map(s => s.dataset.id);
         ui.elements.form.querySelectorAll('input, select, textarea').forEach(i => { if (i.name === 'notes' || !i.name || i.name.includes('[]')) return; const s = i.closest('section'); if (!s || activeS.includes(s.dataset.id)) { if (i.type === 'checkbox') entry[i.name] = i.checked; else if (i.type === 'number') entry[i.name] = i.value !== "" ? parseFloat(i.value) : null; else entry[i.name] = i.value; } });
-        const suggP = []; ['food', 'fluid', 'meds'].forEach(t => { if (activeS.includes(t)) { const ls = document.querySelectorAll(`input[name="${t}_label[]"]`), vs = document.querySelectorAll(`input[name="${t}_value[]"]`), us = document.querySelectorAll(`input[name="${t}_unit[]"]`); ls.forEach((el, i) => { if (el.value.trim()) { entry[`${t}_items`].push({ label: el.value.trim(), value: parseFloat(vs[i].value) || 0, unit: us[i].value.trim() }); suggP.push(storage.addSuggestion(`${t}_labels`, el.value.trim())); suggP.push(storage.addSuggestion(`${t}_units`, us[i].value.trim())); } }); } });
+        const suggP = [];
+        ['food', 'fluid', 'meds'].forEach(t => { if (activeS.includes(t)) { const ls = document.querySelectorAll(`input[name="${t}_label[]"]`), vs = document.querySelectorAll(`input[name="${t}_value[]"]`), us = document.querySelectorAll(`input[name="${t}_unit[]"]`); ls.forEach((el, i) => { if (el.value.trim()) { entry[`${t}_items`].push({ label: el.value.trim(), value: parseFloat(vs[i].value) || 0, unit: us[i].value.trim() }); suggP.push(storage.addSuggestion(`${t}_labels`, el.value.trim())); suggP.push(storage.addSuggestion(`${t}_units`, us[i].value.trim())); } }); } });
+        if (activeS.includes('event')) {
+            const ls = document.querySelectorAll('input[name="event_label[]"]'), rs = document.querySelectorAll('textarea[name="event_remarks[]"]');
+            ls.forEach((el, i) => { if (el.value.trim()) { entry.event_items.push({ label: el.value.trim(), remarks: rs[i].value.trim() }); suggP.push(storage.addSuggestion('event_labels', el.value.trim())); } });
+        }
         await Promise.all(suggP); entry.photos = App.state.currentPhotos;
         if (App.state.editingId) await storage.updateEntry(App.state.editingId, entry); else await storage.saveEntry(entry);
         ui.populateDatalists(await storage.getSuggestions()); App.closeModal(); await App.loadDashboardData();
@@ -410,6 +421,42 @@ const App = {
         const dates = Object.keys(dailyData), labels = dates.map(d => utils.formatDate(d).split(' (')[0]);
         App.drawTrendChart('chart-anc', labels, Object.values(dailyData).map(d => d.anc), 'ANC', '#6366f1'); App.drawTrendChart('chart-platelets', labels, Object.values(dailyData).map(d => d.platelets), 'Platelets', '#3b82f6'); App.drawTrendChart('chart-temp', labels, Object.values(dailyData).map(d => d.maxTemp || null), 'Max Temp', '#ef4444'); App.drawTrendChart('chart-weight', labels, Object.values(dailyData).map(d => d.weight), 'Weight', '#64748b');
         const intakeC = document.getElementById('intake-summary-container'); if (intakeC) { const last3 = Object.entries(dailyData).reverse().slice(0, 3); intakeC.innerHTML = last3.map(([date, data]) => `<div class="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col gap-3"><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${utils.formatDate(date)}</p><div class="flex justify-between items-end"><div><p class="text-[10px] font-bold text-blue-500 uppercase">Fluids</p><p class="text-xl font-black text-slate-900">${data.fluids.toFixed(0)}<span class="text-xs ml-0.5 text-slate-400">ml</span></p></div><div class="text-right"><p class="text-[10px] font-bold text-orange-500 uppercase">Food</p><p class="text-xl font-black text-slate-900">${data.food.toFixed(0)}<span class="text-xs ml-0.5 text-slate-400">g</span></p></div></div></div>`).join(''); }
+        
+        // Render Clinical Events History
+        const allEvents = [];
+        entries.forEach(e => {
+            if (e.event_items?.length > 0) {
+                e.event_items.forEach(ei => {
+                    allEvents.push({ ...ei, timestamp: e.timestamp });
+                });
+            }
+        });
+        allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const eventsList = document.getElementById('insights-events-list');
+        if (eventsList) {
+            if (allEvents.length === 0) {
+                eventsList.innerHTML = '<div class="p-8 text-center text-xs font-bold text-slate-400 italic">No clinical events recorded.</div>';
+            } else {
+                eventsList.innerHTML = allEvents.map(ev => `
+                    <details class="group border-slate-50">
+                        <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors list-none">
+                            <div class="grid grid-cols-2 w-full items-center">
+                                <div class="flex flex-col">
+                                    <span class="text-xs font-black text-slate-900">${utils.formatDate(ev.timestamp).split(' (')[0]}</span>
+                                    <span class="text-[10px] font-bold text-slate-400">${ev.timestamp.split('T')[1]}</span>
+                                </div>
+                                <span class="text-xs font-black text-purple-600">${ev.label}</span>
+                            </div>
+                            <span class="text-slate-300 group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <div class="px-4 pb-4 pt-2 bg-purple-50/30">
+                            <p class="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-1">Remarks</p>
+                            <p class="text-xs font-medium text-slate-700 whitespace-pre-wrap">${ev.remarks || 'No remarks provided.'}</p>
+                        </div>
+                    </details>
+                `).join('');
+            }
+        }
     },
 
     drawTrendChart: (canvasId, labels, data, label, color) => {
@@ -423,8 +470,11 @@ const App = {
 
     exportToCSV: async () => {
         const entries = await storage.getEntries(); if (entries.length === 0) return alert('No data.');
-        let csv = 'Timestamp,Temp,ANC,Platelets,Urine,Stool,Vomit,Notes\n';
-        entries.forEach(e => { csv += `"${e.timestamp}",${e.temp || ''},${e.anc || ''},${e.platelets || ''},${e.urine_out || ''},${e.stool_freq || ''},${e.vomit_count || ''},"${(e.notes || '').replace(/"/g, '""')}"\n`; });
+        let csv = 'Timestamp,Temp,ANC,Platelets,Urine,Stool,Vomit,Events,Notes\n';
+        entries.forEach(e => {
+            const eventsStr = (e.event_items || []).map(ei => `${ei.label}: ${ei.remarks.replace(/\n/g, ' ')}`).join(' | ');
+            csv += `"${e.timestamp}",${e.temp || ''},${e.anc || ''},${e.platelets || ''},${e.urine_out || ''},${e.stool_freq || ''},${e.vomit_count || ''},"${eventsStr.replace(/"/g, '""')}","${(e.notes || '').replace(/"/g, '""')}"\n`;
+        });
         const blob = new Blob([csv], { type: 'text/csv' }), url = window.URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `export.csv`; a.click();
     },
 

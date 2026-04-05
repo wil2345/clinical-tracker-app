@@ -101,6 +101,7 @@ export const ui = {
             meds: { icon: '💊', name: 'Meds', fields: {}, count: entry.meds_items?.length || 0 },
             food: { icon: '🍲', name: 'Food', fields: {}, count: entry.food_items?.length || 0 },
             fluid: { icon: '💧', name: 'Fluid', fields: {}, count: entry.fluid_items?.length || 0 },
+            event: { icon: '🔔', name: 'Event', fields: {}, count: entry.event_items?.length || 0 },
             poopee: { icon: '🚽', fields: { urine_out: 'Urine Vol', urine_color: 'Urine Color', stool_freq: 'Stool', stool_type: 'Stool Type', vomit_count: 'Vomit' } },
             photos: { icon: '📸', fields: {} }
         };
@@ -133,6 +134,17 @@ export const ui = {
                     </div>
                 `;
                 return;
+            }
+
+            if (id === 'event' && entry.event_items?.length > 0) {
+                dataInCat = [...dataInCat, ...entry.event_items.map(item => {
+                    return `
+                        <div class="flex flex-col col-span-2 sm:col-span-3">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${item.label}</span>
+                            <span class="text-xs font-medium text-slate-700 whitespace-pre-wrap">${item.remarks || ''}</span>
+                        </div>
+                    `;
+                })];
             }
 
             ['meds', 'food', 'fluid'].forEach(type => {
