@@ -24,11 +24,11 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 
 ---
 
-## 3. Current Implementation (Status: Production Ready - v1.4.0)
+## 3. Current Implementation (Status: Production Ready - v1.4.1)
 
 ### Core PWA & Storage
 - [x] **PWA Infrastructure:** Installable standalone app with Service Worker (`sw.js`) for offline support.
-- [x] **Auto-Update:** Non-disruptive Toast Notification update logic (v1.4.0 cache).
+- [x] **Auto-Update:** Non-disruptive Toast Notification update logic (v1.4.1 cache).
 - [x] **IndexedDB Migration:** High-capacity, asynchronous storage.
 - [x] **Data Management:** Export to CSV/JSON and full JSON data import for backups.
 
@@ -41,7 +41,7 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 - [x] **Smart Cycle Management:** Duration-based end date calculation with Day X counters and overlapping cycle support.
 - [x] **Clinical Photo Support:** Up to 5 compressed JPEG strings per entry.
 
-### Advanced Insights (v1.4.0)
+### Advanced Insights (v1.4.1)
 - [x] **Interactive Time Ranges:** "Stock Chart" style selectors (7D, 14D, 1M, 6M, YTD, MAX) with a 1M default.
 - [x] **Treatment Overview:** High-level metrics for "Days Elapsed" (earliest start) and "Days Remaining" (latest end).
 - [x] **Blood Profile Progression:** Unified line chart for ANC, PLT, WBC, and HB with dual Y-axes.

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clinical-tracker-v1.4.0';
+const CACHE_NAME = 'clinical-tracker-v1.4.1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -8,6 +8,9 @@ const ASSETS_TO_CACHE = [
   './js/storage.js',
   './js/ui.js',
   './js/utils.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon.svg',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
