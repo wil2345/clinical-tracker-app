@@ -7,10 +7,10 @@ export const ui = {
     elements: {
         modal: document.getElementById('modal-entry'),
         modalTitle: document.getElementById('modal-title'),
-        form: document.getElementById('entry-form'),
-        btnAddMobile: document.getElementById('btn-add-entry-mobile'),
-        btnClose: document.getElementById('btn-close-modal'),
         btnSave: document.getElementById('btn-save-entry'),
+        btnAddMobile: document.getElementById('btn-add-entry-mobile'),
+        btnAddDesktop: document.getElementById('btn-add-entry-desktop'),
+        btnClose: document.getElementById('btn-close-modal'),
         chips: document.querySelectorAll('.chip'),
         sections: document.querySelectorAll('section[data-id]'),
         emergencyAlert: document.getElementById('emergency-alert'),
@@ -42,6 +42,7 @@ export const ui = {
         ui.elements.modalTitle = document.getElementById('modal-title');
         ui.elements.form = document.getElementById('entry-form');
         ui.elements.btnAddMobile = document.getElementById('btn-add-entry-mobile');
+        ui.elements.btnAddDesktop = document.getElementById('btn-add-entry-desktop');
         ui.elements.btnClose = document.getElementById('btn-close-modal');
         ui.elements.btnSave = document.getElementById('btn-save-entry');
         ui.elements.chips = document.querySelectorAll('.chip');

@@ -3,7 +3,7 @@ import { utils } from './utils.js';
 import { ui } from './ui.js';
 
 const App = {
-    state: { editingId: null, currentPhotos: [], settings: null },
+    state: { editingId: null, currentPhotos: [], settings: null, chartRange: '1M' },
 
     init: async () => {
         ui.refreshElements();
@@ -69,10 +69,10 @@ const App = {
     },
 
     openCycleForm: (cycle = null) => {
-        const form = document.getElementById('cycle-form'), id = document.getElementById('cycle-edit-id'), name = document.getElementById('cycle-name'), start = document.getElementById('cycle-start'), end = document.getElementById('cycle-end');
+        const form = document.getElementById('cycle-form'), id = document.getElementById('cycle-edit-id'), name = document.getElementById('cycle-name'), start = document.getElementById('cycle-start'), dur = document.getElementById('cycle-duration'), end = document.getElementById('cycle-end');
         if (!form) return; form.classList.remove('hidden');
-        if (cycle) { id.value = cycle.id; name.value = cycle.name; start.value = cycle.startDate; end.value = cycle.endDate || ''; }
-        else { id.value = ''; name.value = ''; start.value = new Date().toISOString().split('T')[0]; end.value = ''; }
+        if (cycle) { id.value = cycle.id; name.value = cycle.name; start.value = cycle.startDate; end.value = cycle.endDate || ''; dur.value = ''; }
+        else { id.value = ''; name.value = ''; start.value = new Date().toISOString().split('T')[0]; end.value = ''; dur.value = ''; }
     },
 
     saveCycle: async () => {
@@ -123,11 +123,29 @@ const App = {
 
     setupEventListeners: () => {
         window.addEventListener('hashchange', App.handleRouting);
-        const { btnAddMobile, btnClose, btnSave, chips, form } = ui.elements;
+        const { btnAddMobile, btnAddDesktop, btnClose, btnSave, chips, form } = ui.elements;
         if (document.getElementById('tab-history-list')) document.getElementById('tab-history-list').onclick = () => App.switchHistoryTab('list');
         if (document.getElementById('tab-history-calendar')) document.getElementById('tab-history-calendar').onclick = () => App.switchHistoryTab('calendar');
-        if (btnAddMobile) btnAddMobile.onclick = () => App.openModal(); if (btnClose) btnClose.onclick = App.closeModal;
-        chips.forEach(c => c.onclick = () => { const s = document.querySelector(`section[data-id="${c.dataset.section}"]`); if (s) { s.classList.toggle('hidden'); c.classList.toggle('bg-indigo-100'); c.classList.toggle('border-indigo-300'); c.classList.toggle('text-indigo-900'); } });
+        if (btnAddMobile) btnAddMobile.onclick = () => App.openModal();
+        if (btnAddDesktop) btnAddDesktop.onclick = () => App.openModal();
+        if (btnClose) btnClose.onclick = App.closeModal;
+        
+        chips.forEach(c => c.onclick = () => {
+            const sectionId = c.dataset.section;
+            const s = document.querySelector(`section[data-id="${sectionId}"]`);
+            if (s) {
+                const isOpening = s.classList.contains('hidden');
+                s.classList.toggle('hidden');
+                c.classList.toggle('bg-indigo-100');
+                c.classList.toggle('border-indigo-300');
+                c.classList.toggle('text-indigo-900');
+                if (isOpening && ['food', 'fluid', 'meds', 'event'].includes(sectionId)) {
+                    const container = document.getElementById(`${sectionId}-list-container`);
+                    if (container && container.children.length === 0) App.addItemRow(sectionId);
+                }
+            }
+        });
+
         ['food', 'fluid', 'meds', 'event'].forEach(t => { const b = document.getElementById(`btn-add-${t}-item`); if (b) b.onclick = () => App.addItemRow(t); });
         if (document.getElementById('btn-seed-data')) document.getElementById('btn-seed-data').onclick = App.seedTestData;
         if (document.getElementById('btn-clear-test-data')) document.getElementById('btn-clear-test-data').onclick = App.clearTestData;
@@ -135,6 +153,26 @@ const App = {
         if (document.getElementById('btn-save-cycle')) document.getElementById('btn-save-cycle').onclick = App.saveCycle;
         if (document.getElementById('btn-cancel-cycle')) document.getElementById('btn-cancel-cycle').onclick = () => document.getElementById('cycle-form').classList.add('hidden');
         if (document.getElementById('btn-save-thresholds')) document.getElementById('btn-save-thresholds').onclick = App.saveThresholds;
+        
+        // Cycle date calculation logic
+        const cStart = document.getElementById('cycle-start'), cDur = document.getElementById('cycle-duration'), cEnd = document.getElementById('cycle-end');
+        const updateCycleEnd = () => {
+            if (cStart.value && cDur.value) {
+                const start = new Date(cStart.value);
+                start.setDate(start.getDate() + parseInt(cDur.value) - 1);
+                cEnd.value = start.toISOString().split('T')[0];
+            }
+        };
+        if (cStart) cStart.oninput = updateCycleEnd;
+        if (cDur) cDur.oninput = updateCycleEnd;
+
+        document.querySelectorAll('.btn-chart-range').forEach(btn => {
+            btn.onclick = () => {
+                App.state.chartRange = btn.dataset.range;
+                App.renderInsights();
+            };
+        });
+
         if (form) form.oninput = App.validateForm; if (btnSave) btnSave.onclick = (e) => App.saveEntry(e);
         if (document.getElementById('btn-export-csv')) document.getElementById('btn-export-csv').onclick = App.exportToCSV;
         if (document.getElementById('btn-export-json')) document.getElementById('btn-export-json').onclick = App.exportToJSON;
@@ -161,7 +199,7 @@ const App = {
 
     handlePhotoUpload: async (e) => {
         const files = Array.from(e.target.files); if (App.state.currentPhotos.length >= 5) { alert('Max 5 photos allowed.'); return; }
-        let added = 0; for (const f of files) { if (App.state.currentPhotos.length < 5) { const b64 = await App.resizeImage(f, 800, 800); App.state.currentPhotos.push(b64); added++; } }
+        for (const f of files) { if (App.state.currentPhotos.length < 5) { const b64 = await App.resizeImage(f, 800, 800); App.state.currentPhotos.push(b64); } }
         App.renderPhotoPreviews(); App.validateForm(); if (ui.elements.inputPhoto) ui.elements.inputPhoto.value = '';
     },
 
@@ -177,10 +215,8 @@ const App = {
     seedTestData: async () => {
         const entries = [];
         for (let i = 0; i < 7; i++) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            const y = date.getFullYear(), m = String(date.getMonth() + 1).padStart(2, '0'), d = String(date.getDate()).padStart(2, '0');
-            const dateStr = `${y}-${m}-${d}`;
+            const date = new Date(); date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
             entries.push(
                 { timestamp: `${dateStr}T07:00`, source: 'generated', temp: (36.2 + Math.random() * 0.8).toFixed(1), notes: "Morning check.", fluid_items: [{ label: "Water", value: 250, unit: "ml" }] },
                 { timestamp: `${dateStr}T11:45`, source: 'generated', temp: (36.5 + Math.random() * 1.0).toFixed(1), anc: (0.1 + Math.random() * 2).toFixed(2), platelets: Math.floor(20 + Math.random() * 200), wbc: (1 + Math.random() * 5).toFixed(1), notes: "Daily blood work." }
@@ -232,7 +268,6 @@ const App = {
         chips.forEach(c => c.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-900'));
         if (emergencyAlert) emergencyAlert.classList.add('hidden');
         ['food', 'fluid', 'meds', 'event'].forEach(t => { const c = document.getElementById(`${t}-list-container`); if (c) c.innerHTML = ''; });
-        // Reload dashboard data to restore dashboard alert if needed
         App.loadDashboardData();
     },
 
@@ -240,9 +275,7 @@ const App = {
         const formData = new FormData(ui.elements.form); let hasData = App.state.currentPhotos.length > 0;
         for (let [k, v] of formData.entries()) { if (v && v !== "" && k !== 'notes' && k !== 'timestamp') hasData = true; }
         if (ui.elements.btnSave) ui.elements.btnSave.disabled = !hasData;
-        
-        const thresholds = App.state.settings?.emergency_thresholds;
-        const problematic = [];
+        const thresholds = App.state.settings?.emergency_thresholds, problematic = [];
         if (thresholds) {
             const metrics = { temp: 'Temperature', anc: 'ANC', platelets: 'Platelets', hb: 'Hb', wbc: 'WBC', bp_sys: 'BP Systolic' };
             Object.entries(metrics).forEach(([key, label]) => {
@@ -256,14 +289,9 @@ const App = {
                 }
             });
         }
-        
         if (ui.elements.emergencyAlert) {
-            const isE = problematic.length > 0;
-            ui.elements.emergencyAlert.classList.toggle('hidden', !isE);
-            const reasonEl = document.getElementById('emergency-reason');
-            if (reasonEl && isE) {
-                reasonEl.textContent = `Critical threshold exceeded: ${problematic.join(', ')}. Contact medical team.`;
-            }
+            const isE = problematic.length > 0; ui.elements.emergencyAlert.classList.toggle('hidden', !isE);
+            const reasonEl = document.getElementById('emergency-reason'); if (reasonEl && isE) reasonEl.textContent = `Critical threshold exceeded: ${problematic.join(', ')}. Contact medical team.`;
         }
     },
 
@@ -287,37 +315,15 @@ const App = {
     loadDashboardData: async () => {
         const entries = await storage.getEntries();
         const sortedEntries = [...entries].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        const now = new Date(), y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0'), todayStr = `${y}-${m}-${d}`;
+        const now = new Date(), todayStr = now.toISOString().split('T')[0];
         const todayEntries = entries.filter(e => e.timestamp.split('T')[0] === todayStr).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        const latestANC = sortedEntries.find(e => e.anc != null)?.anc;
-        const latestPLT = sortedEntries.find(e => e.platelets != null)?.platelets;
-        const latestWBC = sortedEntries.find(e => e.wbc != null)?.wbc;
-        
+        const latestANC = sortedEntries.find(e => e.anc != null)?.anc, latestPLT = sortedEntries.find(e => e.platelets != null)?.platelets, latestWBC = sortedEntries.find(e => e.wbc != null)?.wbc;
         const thresholds = App.state.settings?.emergency_thresholds;
-        ui.updateBadge('anc', latestANC, thresholds?.anc);
-        ui.updateBadge('platelets', latestPLT, thresholds?.platelets);
-        ui.updateBadge('wbc', latestWBC, thresholds?.wbc);
-
-        // Calculate Water, Poo, Pee for today
+        ui.updateBadge('anc', latestANC, thresholds?.anc); ui.updateBadge('platelets', latestPLT, thresholds?.platelets); ui.updateBadge('wbc', latestWBC, thresholds?.wbc);
         let totalWater = 0, pooCount = 0, peeCount = 0;
-        todayEntries.forEach(e => {
-            // Water (specifically looking for "Water" in fluid items)
-            e.fluid_items?.forEach(fi => {
-                if (fi.label.toLowerCase().includes('water')) totalWater += fi.value;
-            });
-            // Poo (if stool data exists)
-            if (e.stool_freq != null || e.stool_type) pooCount++;
-            // Pee (if urine data exists)
-            if (e.urine_out != null || e.urine_color) peeCount++;
-        });
-
+        todayEntries.forEach(e => { e.fluid_items?.forEach(fi => { if (fi.label.toLowerCase().includes('water')) totalWater += fi.value; }); if (e.stool_freq != null || e.stool_type) pooCount++; if (e.urine_out != null || e.urine_color) peeCount++; });
         const waterEl = document.getElementById('today-water'), pooEl = document.getElementById('today-poo'), peeEl = document.getElementById('today-pee');
-        if (waterEl) waterEl.textContent = totalWater.toFixed(0);
-        if (pooEl) pooEl.textContent = pooCount;
-        if (peeEl) peeEl.textContent = peeCount;
-        
+        if (waterEl) waterEl.textContent = totalWater.toFixed(0); if (pooEl) pooEl.textContent = pooCount; if (peeEl) peeEl.textContent = peeCount;
         ui.elements.todayList.innerHTML = '';
         if (todayEntries.length === 0) ui.elements.todayEmpty.classList.remove('hidden');
         else { ui.elements.todayEmpty.classList.add('hidden'); todayEntries.forEach(e => ui.elements.todayList.appendChild(ui.createEntryCard(e, App.openModalById, App.handleDelete))); }
@@ -365,93 +371,65 @@ const App = {
     },
 
     renderInsights: async () => {
-        const entries = (await storage.getEntries()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); if (entries.length === 0) return;
-        const dailyData = {}; entries.forEach(e => { const date = e.timestamp.split('T')[0]; if (!dailyData[date]) dailyData[date] = { anc: null, platelets: null, fluids: 0, food: 0, weight: null, maxTemp: 0 }; if (e.anc != null) dailyData[date].anc = e.anc; if (e.platelets != null) dailyData[date].platelets = e.platelets; if (e.weight != null) dailyData[date].weight = e.weight; if (e.temp != null) dailyData[date].maxTemp = Math.max(dailyData[date].maxTemp, e.temp); e.fluid_items?.forEach(i => dailyData[date].fluids += i.value); e.food_items?.forEach(i => dailyData[date].food += i.value); });
-        const scorecardContainer = document.getElementById('insights-scorecards'); if (scorecardContainer) {
-            const thresholds = App.state.settings?.emergency_thresholds;
-            const allAnc = Object.values(dailyData).map(d => d.anc).filter(v => v !== null), lowestAnc = allAnc.length ? Math.min(...allAnc).toFixed(2) : '--';
-            let ancDanger = false;
-            if (thresholds?.anc && lowestAnc !== '--') {
-                if (thresholds.anc.min !== null && lowestAnc < thresholds.anc.min) ancDanger = true;
-                if (thresholds.anc.max !== null && lowestAnc >= thresholds.anc.max) ancDanger = true;
-            }
-
-            const allWeights = Object.values(dailyData).map(d => d.weight).filter(v => v !== null); let weightTrend = '--'; if (allWeights.length >= 2) { const diff = (allWeights[allWeights.length - 1] - allWeights[0]).toFixed(1); weightTrend = (diff > 0 ? '+' : '') + diff + 'kg'; }
-            
-            const tempMax = thresholds?.temp?.max || 38.0;
-            const feverDays = Object.values(dailyData).filter(d => d.maxTemp >= tempMax).length, avgFluid = (Object.values(dailyData).reduce((sum, d) => sum + d.fluids, 0) / Object.keys(dailyData).length).toFixed(0);
-            
-            scorecardContainer.innerHTML = `<div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Lowest ANC</p><p class="text-2xl font-black ${ancDanger ? 'text-red-600' : 'text-indigo-600'}">${lowestAnc}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Weight Change</p><p class="text-2xl font-black text-slate-900">${weightTrend}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Fever Days</p><p class="text-2xl font-black ${feverDays > 0 ? 'text-orange-500' : 'text-slate-900'}">${feverDays}</p></div><div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Avg Fluids</p><p class="text-2xl font-black text-blue-600">${avgFluid}<span class="text-xs ml-0.5 opacity-50">ml</span></p></div>`;
+        const allEntries = (await storage.getEntries()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const settings = await storage.getSettings();
+        let filteredEntries = [...allEntries];
+        const now = new Date();
+        if (App.state.chartRange !== 'Max') {
+            const rangeDays = { '7D': 7, '14D': 14, '1M': 30, '6M': 180 }, cutoff = new Date();
+            if (App.state.chartRange === 'YTD') { cutoff.setMonth(0, 1); cutoff.setHours(0, 0, 0, 0); }
+            else { cutoff.setDate(now.getDate() - rangeDays[App.state.chartRange]); }
+            filteredEntries = allEntries.filter(e => new Date(e.timestamp) >= cutoff);
         }
+        document.querySelectorAll('.btn-chart-range').forEach(btn => {
+            const active = btn.dataset.range === App.state.chartRange;
+            btn.className = active ? 'btn-chart-range px-3 py-1.5 rounded-lg text-[10px] font-black transition-all bg-white text-indigo-600 shadow-sm' : 'btn-chart-range px-3 py-1.5 rounded-lg text-[10px] font-black transition-all text-slate-400 hover:text-slate-600 active:scale-95';
+        });
+        const dEE = document.getElementById('insight-days-elapsed'), dRE = document.getElementById('insight-days-remaining');
+        if (dEE && dRE) {
+            const cycles = settings.cycles || [];
+            if (cycles.length === 0) { dEE.textContent = '--'; dRE.textContent = '--'; }
+            else {
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const startDates = cycles.map(c => { const p = c.startDate.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); });
+                const minS = new Date(Math.min(...startDates)), eD = Math.max(0, Math.floor((today.getTime() - minS.getTime()) / 86400000) + 1);
+                dEE.textContent = eD;
+                const endDates = cycles.filter(c => c.endDate).map(c => { const p = c.endDate.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); });
+                if (endDates.length === 0) dRE.textContent = '--';
+                else { const maxE = new Date(Math.max(...endDates)), rD = Math.max(0, Math.ceil((maxE.getTime() - today.getTime()) / 86400000)); dRE.textContent = rD; }
+            }
+        }
+        if (allEntries.length === 0) return;
+        const dailyData = {};
+        filteredEntries.forEach(e => {
+            const d = e.timestamp.split('T')[0];
+            if (!dailyData[d]) dailyData[d] = { anc: null, platelets: null, wbc: null, hb: null, fluids: 0, food: 0, weight: null, height: null, maxTemp: 0 };
+            if (e.anc != null) dailyData[d].anc = e.anc; if (e.platelets != null) dailyData[d].platelets = e.platelets; if (e.wbc != null) dailyData[d].wbc = e.wbc; if (e.hb != null) dailyData[d].hb = e.hb;
+            if (e.weight != null) dailyData[d].weight = e.weight; if (e.height != null) dailyData[d].height = e.height; if (e.temp != null) dailyData[d].maxTemp = Math.max(dailyData[d].maxTemp, e.temp);
+            e.fluid_items?.forEach(i => dailyData[d].fluids += i.value); e.food_items?.forEach(i => dailyData[d].food += i.value);
+        });
         const dates = Object.keys(dailyData), labels = dates.map(d => utils.formatDate(d).split(' (')[0]);
-        App.drawTrendChart('chart-anc', labels, Object.values(dailyData).map(d => d.anc), 'ANC', '#6366f1'); App.drawTrendChart('chart-platelets', labels, Object.values(dailyData).map(d => d.platelets), 'Platelets', '#3b82f6'); App.drawTrendChart('chart-temp', labels, Object.values(dailyData).map(d => d.maxTemp || null), 'Max Temp', '#ef4444'); App.drawTrendChart('chart-weight', labels, Object.values(dailyData).map(d => d.weight), 'Weight', '#64748b');
-        const intakeC = document.getElementById('intake-summary-container'); if (intakeC) { const last3 = Object.entries(dailyData).reverse().slice(0, 3); intakeC.innerHTML = last3.map(([date, data]) => `<div class="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col gap-3"><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${utils.formatDate(date)}</p><div class="flex justify-between items-end"><div><p class="text-[10px] font-bold text-blue-500 uppercase">Fluids</p><p class="text-xl font-black text-slate-900">${data.fluids.toFixed(0)}<span class="text-xs ml-0.5 text-slate-400">ml</span></p></div><div class="text-right"><p class="text-[10px] font-bold text-orange-500 uppercase">Food</p><p class="text-xl font-black text-slate-900">${data.food.toFixed(0)}<span class="text-xs ml-0.5 text-slate-400">g</span></p></div></div></div>`).join(''); }
-        
-        // Render Clinical Events History
-        const allEvents = [];
-        entries.forEach(e => {
-            if (e.event_items?.length > 0) {
-                e.event_items.forEach(ei => {
-                    allEvents.push({ ...ei, timestamp: e.timestamp });
-                });
-            }
-        });
-        allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        const eventsList = document.getElementById('insights-events-list');
-        if (eventsList) {
-            if (allEvents.length === 0) {
-                eventsList.innerHTML = '<div class="p-8 text-center text-xs font-bold text-slate-400 italic">No clinical events recorded.</div>';
-            } else {
-                eventsList.innerHTML = allEvents.map(ev => `
-                    <details class="group border-slate-50">
-                        <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors list-none">
-                            <div class="grid grid-cols-2 w-full items-center">
-                                <div class="flex flex-col">
-                                    <span class="text-xs font-black text-slate-900">${utils.formatDate(ev.timestamp).split(' (')[0]}</span>
-                                    <span class="text-[10px] font-bold text-slate-400">${ev.timestamp.split('T')[1]}</span>
-                                </div>
-                                <span class="text-xs font-black text-purple-600">${ev.label}</span>
-                            </div>
-                            <span class="text-slate-300 group-open:rotate-180 transition-transform">▼</span>
-                        </summary>
-                        <div class="px-4 pb-4 pt-2 bg-purple-50/30">
-                            <p class="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-1">Remarks</p>
-                            <p class="text-xs font-medium text-slate-700 whitespace-pre-wrap">${ev.remarks || 'No remarks provided.'}</p>
-                        </div>
-                    </details>
-                `).join('');
-            }
-        }
+        const draw = (id, cfg) => { const ctx = document.getElementById(id); if (ctx) { const ex = Chart.getChart(id); if (ex) ex.destroy(); new Chart(ctx, cfg); } };
+        draw('chart-blood-profile', { type: 'line', data: { labels, datasets: [ { label: 'ANC', data: dates.map(d => dailyData[d].anc), borderColor: '#6366f1', backgroundColor: '#6366f120', borderWidth: 3, tension: 0.4, pointRadius: 3, spanGaps: true, yAxisID: 'y' }, { label: 'WBC', data: dates.map(d => dailyData[d].wbc), borderColor: '#8b5cf6', backgroundColor: '#8b5cf620', borderWidth: 3, tension: 0.4, pointRadius: 3, spanGaps: true, yAxisID: 'y' }, { label: 'HB', data: dates.map(d => dailyData[d].hb), borderColor: '#10b981', backgroundColor: '#10b98120', borderWidth: 3, tension: 0.4, pointRadius: 3, spanGaps: true, yAxisID: 'y' }, { label: 'PLT', data: dates.map(d => dailyData[d].platelets), borderColor: '#3b82f6', backgroundColor: '#3b82f620', borderWidth: 3, tension: 0.4, pointRadius: 3, spanGaps: true, yAxisID: 'y1' } ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } } }, scales: { y: { type: 'linear', position: 'left', beginAtZero: true, title: { display: true, text: 'ANC/WBC/HB', font: { size: 10, weight: 'bold' } } }, y1: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'PLT', font: { size: 10, weight: 'bold' } }, grid: { drawOnChartArea: false } }, x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } } } } });
+        const bpD = {}; filteredEntries.forEach(e => { const d = e.timestamp.split('T')[0]; if (!bpD[d]) bpD[d] = { sys: null, dia: null }; if (e.bp_sys != null) bpD[d].sys = Math.max(bpD[d].sys || 0, e.bp_sys); if (e.bp_dia != null) bpD[d].dia = Math.max(bpD[d].dia || 0, e.bp_dia); });
+        const bpL = Object.keys(bpD).map(d => utils.formatDate(d).split(' (')[0]);
+        draw('chart-blood-pressure', { type: 'bar', data: { labels: bpL, datasets: [ { label: 'Range', data: Object.values(bpD).map(d => (d.sys && d.dia) ? [d.dia, d.sys] : null), backgroundColor: '#f43f5e', borderRadius: 4, borderSkipped: false, barPercentage: 0.4, z: 0 }, { label: 'SYS', type: 'line', data: Object.values(bpD).map(d => d.sys), borderColor: '#ef4444', borderWidth: 2, tension: 0.4, pointRadius: 2, spanGaps: true, z: 10 }, { label: 'DIA', type: 'line', data: Object.values(bpD).map(d => d.dia), borderColor: '#f87171', borderWidth: 2, tension: 0.4, pointRadius: 2, spanGaps: true, z: 10 } ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } } }, scales: { y: { beginAtZero: false, min: 40, max: 180, title: { display: true, text: 'mmHg', font: { size: 10, weight: 'bold' } } }, x: { grid: { display: false } } } } });
+        const outD = {}; filteredEntries.forEach(e => { const d = e.timestamp.split('T')[0]; if (!outD[d]) outD[d] = { poo: 0, pee: 0 }; if (e.stool_freq != null || e.stool_type) outD[d].poo++; if (e.urine_out != null || e.urine_color) outD[d].pee++; });
+        draw('chart-output-log', { type: 'bar', data: { labels: Object.keys(outD).map(d => utils.formatDate(d).split(' (')[0]), datasets: [ { label: 'Poo', data: Object.values(outD).map(d => d.poo), backgroundColor: '#78350f', borderRadius: 6 }, { label: 'Pee', data: Object.values(outD).map(d => d.pee), backgroundColor: '#f59e0b', borderRadius: 6 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } } });
+        const fluD = {}; filteredEntries.forEach(e => { const d = e.timestamp.split('T')[0]; if (!fluD[d]) fluD[d] = 0; e.fluid_items?.forEach(fi => { if (fi.unit?.toLowerCase() === 'ml') fluD[d] += (fi.value || 0); }); });
+        draw('chart-fluid-log', { type: 'bar', data: { labels: Object.keys(fluD).map(d => utils.formatDate(d).split(' (')[0]), datasets: [ { label: 'Fluids (ml)', data: Object.values(fluD), backgroundColor: '#3b82f6', borderRadius: 6 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } } });
+        draw('chart-weight-progression', { type: 'line', data: { labels, datasets: [ { label: 'Weight (kg)', data: dates.map(d => dailyData[d].weight), borderColor: '#64748b', backgroundColor: '#64748b20', borderWidth: 3, tension: 0.4, fill: true, pointRadius: 4, spanGaps: true, yAxisID: 'y' }, { label: 'Height (cm)', data: dates.map(d => dailyData[d].height), borderColor: '#10b981', borderWidth: 3, tension: 0, borderDash: [5, 5], pointRadius: 4, spanGaps: true, yAxisID: 'y1' } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { type: 'linear', position: 'left', beginAtZero: false, title: { display: true, text: 'kg' } }, y1: { type: 'linear', position: 'right', beginAtZero: false, title: { display: true, text: 'cm' }, grid: { drawOnChartArea: false } }, x: { grid: { display: false } } } } });
+        const allEvs = []; allEntries.forEach(e => e.event_items?.forEach(ei => allEvs.push({ ...ei, timestamp: e.timestamp })));
+        allEvs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const evL = document.getElementById('insights-events-list');
+        if (evL) { if (allEvs.length === 0) evL.innerHTML = '<p class="p-8 text-center text-xs font-bold text-slate-400 italic">No events.</p>'; else evL.innerHTML = allEvs.map(ev => `<details class="group border-slate-50"><summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors list-none"><div class="grid grid-cols-2 w-full items-center"><div class="flex flex-col"><span class="text-xs font-black text-slate-900">${utils.formatDate(ev.timestamp).split(' (')[0]}</span><span class="text-[10px] font-bold text-slate-400">${ev.timestamp.split('T')[1]}</span></div><span class="text-xs font-black text-purple-600">${ev.label}</span></div><span class="text-slate-300 group-open:rotate-180 transition-transform">▼</span></summary><div class="px-4 pb-4 pt-2 bg-purple-50/30"><p class="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-1">Remarks</p><p class="text-xs font-medium text-slate-700 whitespace-pre-wrap">${ev.remarks || 'None.'}</p></div></details>`).join(''); }
     },
 
-    drawTrendChart: (canvasId, labels, data, label, color) => {
-        const ctx = document.getElementById(canvasId); if (!ctx) return; const existing = Chart.getChart(canvasId); if (existing) existing.destroy();
-        new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: label, data: data, borderColor: color, backgroundColor: color + '20', borderWidth: 3, tension: 0.4, fill: true, pointBackgroundColor: '#fff', pointBorderColor: color, pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6, spanGaps: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', cornerRadius: 12, displayColors: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10, weight: 'bold' }, color: '#94a3b8' } }, x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' }, color: '#94a3b8' } } } } });
-    },
-
-    handleDelete: async (id) => { if (confirm('Delete this record?')) { await storage.deleteEntry(id); await App.loadDashboardData(); if (window.location.hash === '#history') await App.renderHistory(); } },
-
+    handleDelete: async (id) => { if (confirm('Delete?')) { await storage.deleteEntry(id); await App.loadDashboardData(); if (window.location.hash === '#history') await App.renderHistory(); } },
     openModalById: async (id) => { const entries = await storage.getEntries(), entry = entries.find(e => e.id === id); if (entry) App.openModal(entry); },
-
-    exportToCSV: async () => {
-        const entries = await storage.getEntries(); if (entries.length === 0) return alert('No data.');
-        let csv = 'Timestamp,Temp,ANC,Platelets,Urine,Stool,Vomit,Events,Notes\n';
-        entries.forEach(e => {
-            const eventsStr = (e.event_items || []).map(ei => `${ei.label}: ${ei.remarks.replace(/\n/g, ' ')}`).join(' | ');
-            csv += `"${e.timestamp}",${e.temp || ''},${e.anc || ''},${e.platelets || ''},${e.urine_out || ''},${e.stool_freq || ''},${e.vomit_count || ''},"${eventsStr.replace(/"/g, '""')}","${(e.notes || '').replace(/"/g, '""')}"\n`;
-        });
-        const blob = new Blob([csv], { type: 'text/csv' }), url = window.URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `export.csv`; a.click();
-    },
-
-    exportToJSON: async () => {
-        const entries = await storage.getEntries(), settings = await storage.getSettings(), data = { entries, settings, date: new Date().toISOString() };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), url = window.URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `backup.json`; a.click();
-    },
-
-    importFromJSON: async (e) => {
-        const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
-        reader.onload = async (event) => { try { const data = JSON.parse(event.target.result); if (!data.entries) throw new Error('Invalid file'); if (confirm(`Import ${data.entries.length} records?`)) { for (const entry of data.entries) { await storage.saveEntry({ ...entry, source: 'import' }); } if (data.settings) await storage.saveSettings(data.settings); location.reload(); } } catch (err) { alert('Error: ' + err.message); } }; reader.readAsText(file);
-    }
+    exportToCSV: async () => { const entries = await storage.getEntries(); if (entries.length === 0) return alert('No data.'); let csv = 'Timestamp,Temp,ANC,Platelets,Urine,Stool,Vomit,Events,Notes\n'; entries.forEach(e => { const evs = (e.event_items || []).map(ei => `${ei.label}: ${ei.remarks.replace(/\n/g, ' ')}`).join(' | '); csv += `"${e.timestamp}",${e.temp || ''},${e.anc || ''},${e.platelets || ''},${e.urine_out || ''},${e.stool_freq || ''},${e.vomit_count || ''},"${evs.replace(/"/g, '""')}","${(e.notes || '').replace(/"/g, '""')}"\n`; }); const blob = new Blob([csv], { type: 'text/csv' }), url = window.URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `export.csv`; a.click(); },
+    exportToJSON: async () => { const entries = await storage.getEntries(), settings = await storage.getSettings(), data = { entries, settings, date: new Date().toISOString() }; const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), url = window.URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `backup.json`; a.click(); },
+    importFromJSON: async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (event) => { try { const data = JSON.parse(event.target.result); if (!data.entries) throw new Error('Invalid file'); if (confirm(`Import ${data.entries.length} records?`)) { for (const entry of data.entries) { await storage.saveEntry({ ...entry, source: 'import' }); } if (data.settings) await storage.saveSettings(data.settings); location.reload(); } } catch (err) { alert('Error: ' + err.message); } }; reader.readAsText(file); }
 };
 
 document.addEventListener('DOMContentLoaded', App.init);

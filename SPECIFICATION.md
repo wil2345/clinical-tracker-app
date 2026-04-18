@@ -17,41 +17,46 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 ### Interaction Design
 - **Social-Post Cards:** Records styled like social media posts with "Observations" priority.
 - **Fixed Navigation:** Top-sticky dynamic header displaying current view context and active cycle badges.
-- **Unified Emergency Alerts:** Full-width rectangular red alert bar for the Add Entry Modal, sticky to the top of the viewport. (Dashboard alert disabled for clarity).
-- **Mobile Optimized:** Disabled horizontal swipe-to-navigate gestures (`overscroll-behavior-x: none`) to prevent accidental browser navigation and ensure a robust PWA experience.
+- **Unified Emergency Alerts:** Full-width rectangular red alert bar for the Add Entry Modal, sticky to the top of the viewport.
+- **Mobile Optimized:** Disabled horizontal swipe-to-navigate gestures (`overscroll-behavior-x: none`).
 - **Smart Learning:** Automatic suggestion engine for medications, foods, and units.
+- **UX Efficiency:** Automatic population of the first row when opening Food, Fluid, Meds, or Event sections in the entry modal.
 
 ---
 
-## 3. Current Implementation (Status: Production Ready - v1.3.2)
+## 3. Current Implementation (Status: Production Ready - v1.4.0)
 
 ### Core PWA & Storage
 - [x] **PWA Infrastructure:** Installable standalone app with Service Worker (`sw.js`) for offline support.
-- [x] **Auto-Update:** Non-disruptive Toast Notification update logic.
-- [x] **IndexedDB Migration:** High-capacity, asynchronous storage replacing the 5MB localStorage limit.
-- [x] **Settings Migration:** Automatic merging of new default settings with existing user data.
+- [x] **Auto-Update:** Non-disruptive Toast Notification update logic (v1.4.0 cache).
+- [x] **IndexedDB Migration:** High-capacity, asynchronous storage.
+- [x] **Data Management:** Export to CSV/JSON and full JSON data import for backups.
 
 ### Clinical Management
-- [x] **Recent Blood Counts:** Dashboard scorecards for **ANC**, **PLT**, and **WBC** dynamically display the absolute latest values recorded across all entries.
-- [x] **Intake & Output Tracking:** Real-time dashboard counters for **Water (mL)**, **Poo Count**, and **Pee Count** for the current day.
-- [x] **Clinical Events:** Support for recording discrete events (e.g., Vomiting, Fever, Seizure) with a searchable label and multi-line remarks.
-- [x] **Flexible Emergency Thresholds:** User-configurable `<` and `>=` thresholds for Temperature, ANC, Platelets, Hb, WBC, and BP Systolic.
-- [x] **Real-time Diagnostic Alerts:** Sticky red UI bars that identify specific problematic metrics during entry creation.
-- [x] **Multi-Cycle Management:** Support for defining multiple overlapping treatment cycles with dynamic "Day X" counters in the header.
-- [x] **Clinical Photo Support:** Native camera/gallery integration with resizing and compression.
+- [x] **Comprehensive Vitals:** Tracking for Temperature, Weight, **Height (cm)**, Pulse, BP, and SpO2.
+- [x] **Blood Work:** Dynamic scorecards and history for ANC, PLT, WBC, and Hb.
+- [x] **Intake & Output:** Real-time counters and historical logs for Water (mL), Stool, Pee, and Vomit.
+- [x] **Clinical Events:** chronological history of discrete medical events with detailed remarks.
+- [x] **Emergency Thresholds:** User-configurable alerts for Temp, ANC, Platelets, Hb, WBC, and BP Systolic.
+- [x] **Smart Cycle Management:** Duration-based end date calculation with Day X counters and overlapping cycle support.
+- [x] **Clinical Photo Support:** Up to 5 compressed JPEG strings per entry.
 
-### Data & Insights
-- [x] **Clinical Events History:** A dedicated table in the Insights view listing all recorded events by date/time, featuring expandable rows for detailed remarks.
-- [x] **Enhanced CSV Export:** Data exports include a dedicated "Events" column concatenating all event labels and remarks for clinical review.
-- [x] **Data Visualization:** Integration of multi-cycle trend analysis for ANC, Platelets, Temperature, and Weight.
+### Advanced Insights (v1.4.0)
+- [x] **Interactive Time Ranges:** "Stock Chart" style selectors (7D, 14D, 1M, 6M, YTD, MAX) with a 1M default.
+- [x] **Treatment Overview:** High-level metrics for "Days Elapsed" (earliest start) and "Days Remaining" (latest end).
+- [x] **Blood Profile Progression:** Unified line chart for ANC, PLT, WBC, and HB with dual Y-axes.
+- [x] **Blood Pressure Range:** Combined floating bars (range) and trend lines (SYS/DIA).
+- [x] **Growth Progression:** Dual-axis chart for Weight (kg) and Height (cm).
+- [x] **Daily Logs:** Specialized bar charts for Poo/Pee counts and Fluid intake (ml).
+- [x] **Full Event History:** Unfiltered chronological list of all clinical events.
 
 ---
 
 ## 4. Quality Assurance & Testing
 
 ### Validation Framework
-- **E2E Automation:** 12 comprehensive Playwright test cases covering core workflows and emergency logic.
-- **Threshold Verification:** Automated testing of custom threshold configuration and alert triggering.
+- **E2E Automation:** 12 comprehensive Playwright test cases covering core workflows.
+- **Threshold Verification:** Automated testing of custom threshold configuration.
 - **Asynchronous Integrity:** Validated against the IndexedDB storage layer.
 
 ---
@@ -66,30 +71,29 @@ A premium, **PWA-enabled**, offline-first clinical tracking application designed
 | `source` | String | `manual`, `generated`, or `import`. |
 | `photos` | Array (B64) | Up to 5 compressed JPEG strings. |
 | `notes` | String | Clinical observations. |
-| `temp` | Number | Body temperature. |
+| `temp` | Number | Body temperature (°C). |
+| `weight` | Number | Body weight (kg). |
+| `height` | Number | Body height (cm). |
+| `hr` | Number | Pulse (bpm). |
 | `anc` | Number | ANC count. |
 | `platelets` | Number | Platelet count. |
 | `wbc` | Number | White Blood Cell count. |
 | `hb` | Number | Hemoglobin count. |
 | `bp_sys` | Number | Systolic Blood Pressure. |
+| `bp_dia` | Number | Diastolic Blood Pressure. |
+| `spo2` | Number | Oxygen Saturation (%). |
 | `urine_out` | Number | Urine output in mL. |
-| `stool_freq` | Number | Stool frequency/amount. |
+| `stool_freq` | Number | Stool amount/frequency. |
 | `meds_items` | Array of Obj | `{ label, value, unit }`. |
 | `food_items` | Array of Obj | `{ label, value, unit }`. |
 | `fluid_items`| Array of Obj | `{ label, value, unit }`. |
 | `event_items`| Array of Obj | `{ label, remarks }`. |
-
-### `Settings` Object
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `cycles` | Array of Obj | `{ id, name, startDate, endDate }`. |
-| `emergency_thresholds`| Object | `{ [metric]: { min, max } }` for Temperature, ANC, PLT, Hb, WBC, BP Sys. |
 
 ---
 
 ## 6. Project Roadmap
 
 ### Future Phases
-- [ ] **Data Visualization:** Integration of more advanced multi-cycle trend analysis.
+- [ ] **Advanced Data Export:** PDF report generation for clinical consultations.
 - [ ] **Medication Reminders:** Local notification support via PWA APIs.
-- [ ] **Multi-Patient Support:** Profile switching for families managing multiple treatment paths.
+- [ ] **Multi-Patient Support:** Profile switching for families.
